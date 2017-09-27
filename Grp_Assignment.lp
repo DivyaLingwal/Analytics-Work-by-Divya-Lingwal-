@@ -42,9 +42,6 @@ y2 - y3 >= -1;
 bin 
 x1g1,x2g1,x3g1,x4g1,x5g1,x6g1,x7g1,x8g1,x9g1,x10g1,x11g1,
 x1g2,x2g2,x3g2,x4g2,x5g2,x6g2,x7g2,x8g2,x9g2,x10g2,x11g2,
-x1g3,x2g3,x3g3,x4g3,x5g3,x6g3,x7g3,x8g3,x9g3,x10g3,x11g3,
-x1g1,x2g1,x3g1,x4g1,x5g1,x6g1,x7g1,x8g1,x9g1,x10g1,x11g1,
-x1g2,x2g2,x3g2,x4g2,x5g2,x6g2,x7g2,x8g2,x9g2,x10g2,x11g2,
 x1g3,x2g3,x3g3,x4g3,x5g3,x6g3,x7g3,x8g3,x9g3,x10g3,x11g3;
 
 
