@@ -1,4 +1,8 @@
 /* Objective function */
+/* x1,x2,x3,x4 are variables defining quantity of raw materials bought which are less than 200*/
+/* y1,y2,y3,y4 are variables defining quantity of raw materials, which is the amount above 200 on which company is supposed to get a discount*/
+/* z1,z2,z3,z4 are the quantity of items which are left in inventory for usage in next month */
+/* b1,b2,b3,b4 are binary variables which is 0 if quantity bought in a particular month is less than 200 and 1 if vice versa */
 min: 12x1 + 10y1 + 14x2 +12y2 +16x3 +14y3 + 18x4 +16y4 + 2z1 +2z2 +2z3 +2z4; 
 /* Constraints */
 
