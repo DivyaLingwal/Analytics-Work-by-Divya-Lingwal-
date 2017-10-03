@@ -1,5 +1,5 @@
 /* Objective function */
-min: 12X1 + 10y1 + 14x2 +12y2 +16x3 +14y3 + 18x4 +16y4 + 2z1 +2z2 +2z3 +2z4; 
+min: 12x1 + 10y1 + 14x2 +12y2 +16x3 +14y3 + 18x4 +16y4 + 2z1 +2z2 +2z3 +2z4; 
 /* Constraints */
 
 x1 - 200b1 >= 0;
