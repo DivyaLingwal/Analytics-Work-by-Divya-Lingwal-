@@ -1,0 +1,154 @@
+---
+title: "Group assignment on allocation on people into group to obtain equally efficient groups"
+output: html_notebook
+---
+
+```{r}
+library(lpSolveAPI)
+x<- read.lp("Grp_Assignment.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+```
+
+
+title: "Goal programming 1"
+
+```{r}
+library(lpSolveAPI)
+x<- read.lp("Goal_Pgm_1.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+```
+Result:833 employees above the goal
+
+title: "Goal_Pgm_1"
+
+```{r}
+library(lpSolveAPI)
+x<- read.lp("Goal_Pgm_2.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x<- read.lp("Goal_Pgm_3.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x<- read.lp("Goal_Pgm_4.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+check $duals for finding peers for branch 2. Branch 1 and branch 3.Branch 2 should move 15% towards branch 1....
+
+```{r}
+library(lpSolveAPI)
+x<- read.lp("DEA_1.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+title: "DEA"
+```{r}
+library(Benchmarking)
+x<- matrix(c(100,100,100,100,100),ncol=1) #define inputs
+y<- matrix(c(10,15,20,23,30,31,25,30,23,20),ncol=2) #define outputs
+x
+y
+e_crs<- dea(x,y,RTS="crs",ORIENTATION = "in")
+eff(e_crs) # select effieciency scores from the results
+#constant return to scale
+```
+
+```{r}
+peers(e_crs)
+lambda(e_crs)
+```
+```{r}
+library(Benchmarking)
+x<- matrix(c(150,400,320,520,350,320,0.2,0.7,1.2,2,1.2,0.7),ncol=2) #define inputs
+y<- matrix(c(14000,14000,42000,28000,19000,14000,3500,21000,10500,42000,),ncol=2) #define outputs
+x
+y
+e_crs<- dea(x,y,RTS="crs",ORIENTATION = "in")
+eff(e_crs) # select effieciency scores from the results
+#constant return to scale
+```
+
+ASSIGNMENT 3 Divya
+/* x1,x2,x3,x4 are variables defining quantity of raw materials bought which are less than 200*/
+/* y1,y2,y3,y4 are variables defining quantity of raw materials, which is the amount above 200 on which company is supposed to get a discount*/
+/* z1,z2,z3,z4 are the quantity of items which are left in inventory for usage in next month */
+/* b1,b2,b3,b4 are binary variables which is 0 if quantity bought in a particular month is less than 200 and 1 if vice versa */
+
+```{r}
+library(lpSolveAPI)
+x<- read.lp("Network_op_1.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+```
+```{r}
+library(lpSolveAPI)
+x<- read.lp("Multi_objective.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+```
+```{r}
+library(lpSolveAPI)
+x<- read.lp("Nutrition_Problem.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+```
+
