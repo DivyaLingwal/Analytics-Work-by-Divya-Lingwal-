@@ -3,6 +3,7 @@ Written by Divya Lingwal
 Semester 1 : Kent State University
 Citation:
 Course Work at Kent State University.
+https://github.com/DivyaLingwal/DivyaLingwal_QM.git
 
 Please address questions or problems regarding this software to Divya Lingwal at dlingwal@kent.edu or divya12gem@gmail.com.
 
