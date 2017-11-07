@@ -1,0 +1,100 @@
+---
+title: R Notebook
+output: html_notebook
+---
+#DATA CLEANING for Taxi data NYC
+
+```{r}
+library(dplyr)
+library(ISLR)
+Jan_Data <- read.csv("D:/UniversityData/Allstdydata/Datamining/Project/data/green_tripdata_2017Jan.csv")
+Feb_Data <- read.csv("D:/UniversityData/Allstdydata/Datamining/Project/data/green_tripdata_2017Feb.csv")
+May_Data <- read.csv("D:/UniversityData/Allstdydata/Datamining/Project/data/green_tripdata_2017May.csv")
+June_Data <- read.csv("D:/UniversityData/Allstdydata/Datamining/Project/data/green_tripdata_2017June.csv")
+WeatherData <- read.csv("D:\\UniversityData\\Allstdydata\\Datamining\\Project\\WeatherData_nyc_centralpark.csv")
+# Adding an hour column
+Combined_Data$Hour_of_the_day = format(as.POSIXct(Combined_Data$lpep_pickup_time,format="%H:%M"),"%H")
+
+# Finding hour of the day with highest frequency of cabs
+Combined_Data %>% group_by(Hour_of_the_day) %>% summarise(no=n()) %>% arrange(desc(no))
+Filtered_Time_Data <-   filter(Combined_Data, (Hour_of_the_day==15) | (Hour_of_the_day==18 ) | (Hour_of_the_day=='09') )
+# Checking and removing rows with nearzerovariance
+nzv <- nearZeroVar(Filtered_Time_Data)
+NZV_Removed_Data<-subset(Combined_Data,,-c(store_and_fwd_flag, RatecodeID,fare_amount,mta_tax,tolls_amount,ehail_fee,improvement_surcharge, trip_type))
+
+
+#impute missing values with median
+Unnecessary_Attr_Removed$trip_distance[is.na(Unnecessary_Attr_Removed$trip_distance)] <- median(Unnecessary_Attr_Removed$trip_distance, na.rm = TRUE)
+#impute 0 distance values with median
+Unnecessary_Attr_Removed$trip_distance <- ifelse(Unnecessary_Attr_Removed$trip_distance == 0 & Unnecessary_Attr_Removed$PULocationID != Unnecessary_Attr_Removed$DOLocationID, median(Unnecessary_Attr_Removed$trip_distance), Unnecessary_Attr_Removed$trip_distance)
+
+#Diving into test and train
+
+index <- sample(1:nrow(Complete_data),round(0.6*nrow(Complete_data)))
+train_data <- Complete_data[index,]
+test <- Complete_data[-index,]
+
+index1 <- sample(1:nrow(test),round(0.4*nrow(test)))
+Validation_data <- test[index1,]
+Test_data <- test[-index,]
+
+#Cleaning WeatherData
+library(scales)
+WeatherData <- read.csv("D:\\UniversityData\\Allstdydata\\Datamining\\Project\\WeatherData_nyc_centralpark.csv")
+WeatherData$lpep_pickup_date <- mdy(WeatherData$lpep_pickup_date)
+WeatherData$lpep_pickup_date <- format(as.Date(WeatherData$lpep_pickup_date),"%m/%d/%Y")
+WeatherData$precipitation_NEW <- as.numeric(gsub("T",0.01,WeatherData$precipitation))
+WeatherData$snow.fall_NEW <- as.numeric(gsub("T",0.01,WeatherData$snow.fall))
+WeatherData$snow.depth_NEW <- as.numeric(gsub("T",0.01,WeatherData$snow.depth))
+Temp=strptime(WeatherData$lpep_pickup_date,format='%m/%d/%Y',tz='America/New_York')
+WeatherData$Month_of_year = as.numeric(format(Temp, "%m"))
+WeatherData=filter(WeatherData,(Month_of_year==1) |(Month_of_year==2) | (Month_of_year==5)| (Month_of_year==6))
+
+#Merging weather and taxi data
+Train_data$lpep_pickup_date <- mdy(Train_data$lpep_pickup_date)
+Train_data$lpep_pickup_date <- format(date(Train_data$lpep_pickup_date),"%m/%d/%Y")
+merged_data_train <- merge(x=Train_data,y=WeatherData,by="lpep_pickup_date")
+
+Test_data$lpep_pickup_date <- mdy(Test_data$lpep_pickup_date)
+Test_data$lpep_pickup_date <- format(date(Test_data$lpep_pickup_date),"%m/%d/%Y")
+merged_data_test <- merge(x=Test_data,y=WeatherData,by="lpep_pickup_date")
+
+#write.csv(complete_data,file="merged_data_train.csv",row.names=FALSE)   #saving into local address
+#colnames(WeatherData)[which(names(WeatherData) == "date")] <- "lpep_pickup_date"   #changing col name
+complete_data <- rbind(merged_data_train,merged_data_test)
+
+#Converting Data into Numeric
+merged_data_train$DayOfTheWeek<- factor(merged_data_train$DayOfTheWeek, levels = c("Mon", "Tues", "Wed","Thurs", "Fri", "Sat", "Sun"),ordered = TRUE)
+merged_data_test$DayOfTheWeek<- factor(merged_data_test$DayOfTheWeek, levels = c("Mon", "Tues", "Wed","Thurs", "Fri", "Sat", "Sun"),ordered = TRUE)
+
+merged_data_train$PULocationID<-as.numeric(merged_data_train$PULocationID)
+merged_data_train$DOLocationID <- as.numeric(merged_data_train$DOLocationID)
+merged_data_test$PULocationID<-as.numeric(merged_data_test$PULocationID)
+merged_data_test$DOLocationID <- as.numeric(merged_data_test$DOLocationID)
+
+
+#Adding Pickups column
+Pickups<- merged_data_train %>% group_by(Hour_of_the_day) %>% summarize(Pickups=n()) 
+merge(merged_data_train,Pickups, by="Hour_of_the_day")
+
+Pickups<- merged_data_test %>% group_by(Hour_of_the_day) %>% summarize(Pickups=n()) 
+merge(merged_data_test,Pickups, by="Hour_of_the_day")
+
+
+Model<-lm(Pickups~Hour_of_the_day+PULocationID,data=merged_data_train)
+
+#write.csv(merged_data_train,file="merged_data_train.csv",row.names=FALSE) 
+#write.csv(merged_data_test,file="merged_data_test.csv",row.names=FALSE) 
+library(gvlma)
+
+
+#Discarding few more attribute 
+Selected_Attributes<- subset(complete_data,,select = c(lpep_pickup_time,PULocationID,DOLocationID,passenger_count,trip_distance,Hour_of_the_day,DayOfTheWeek,maximum.temperature,minimum.temperature,average.temperature,precipitation_NEW,snow.fall_NEW,snow.depth_NEW,Month_of_year))
+
+
+#extracted few important features
+Extracted_features<- subset(complete_data,,select = c(lpep_pickup_time,PULocationID,DOLocationID,Hour_of_the_day,DayOfTheWeek,maximum.temperature, minimum.temperature,average.temperature,precipitation_NEW,snow.fall_NEW,snow.depth_NEW,Month_of_year))
+
+
+```
+
