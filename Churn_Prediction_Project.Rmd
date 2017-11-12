@@ -1,0 +1,108 @@
+---
+title: "Predicting Customer Churn in a TelecomCompany"
+output: html_notebook
+---
+
+
+```{r}
+library(dplyr)
+library(ISLR)
+#Load Churn_Train File to variable Churn_Train
+Churn_Train<-read.csv("D:\\UniversityData\\Allstdydata\\businessanalytics\\project\\Churn_Train.csv")
+
+#################DATA CLEANING##########################
+
+#Remove rows with 70% NA or more. Still left with 3.6% missing values in 2 columns
+Churn_Train2 <- Churn_Train[rowMeans(is.na(Churn_Train))<.7,]
+#Change rows to binary.
+Churn_Train2$churn <- as.numeric(Churn_Train2$churn)-1
+#checking Missing values using MICE package
+library(mice)
+md.pattern(Churn_Train2)
+#Visual representation shows International calls and evening minutes have no common rows with missing values, so even if we remove complete rows for both it will be 7.2% of the rows , that will be a large number.All missing values are missing at random
+library(VIM)
+aggr(Churn_Train2, col=c('navyblue','red'), numbers=TRUE, sortVars=TRUE, labels=names(Churn_Train2), cex.axis=.7, gap=3, ylab=c("Histogram of missing data","Pattern"))
+#Deleting all rows with Negative values of Account length, accounts for only 1.4% of rows and should not make any impact on data
+Churn_Train3 <- subset(Churn_Train2, Churn_Train2$account_length>0)
+
+##################IMPUTATION###############
+
+#Imputing NA's using MICE
+Churn_Train4 <- mice(Churn_Train3,m=5,maxit=50,meth='pmm',seed=500)
+summary(Churn_Train4)
+Churn_Train4$imp$total_eve_minutes
+Churn_Train5<-complete(Churn_Train4,1) #imputing randomly with 1st of the 5 datasets created for imputation
+#Visualizing imputed values and original values-The shape of magenta and blue points is identical ,showing that imputed values ar "plausible"
+xyplot(Churn_Train4,total_eve_minutes ~ total_day_calls+total_eve_minutes+total_intl_calls+churn,pch=18,cex=1)
+densityplot(Churn_Train4)
+
+###################Attribute selection#########
+library(caret)
+nearZeroVar(Churn_Train5)  #Hence,Removing number_vmail-messages
+Churn_Train5 <- Churn_Train5[,-6]
+
+#Highly correlated attributes:
+#1.Total_intl_charge and Total_intl_minutes  #Hence,Removing Total_intl_minutes 
+#2.Total_night_mintes and Total_night_charge #Hence, Total_night_mintes
+#3.Total_evening_minutes and total_day_minutes #Hence,total_day_minutes 
+Churn_Train5 <- Churn_Train5[,-c(6,12,15)]
+
+
+####################Dividing into Train and test####################
+
+#Create training data using 70% of the columns from Churn_Train5.
+smp_size <- floor(0.70 * nrow(Churn_Train5))
+set.seed(1234)    
+Training_ind <- sample(seq_len(nrow(Churn_Train5)), size = smp_size)
+
+TrainingData <- Churn_Train5[Training_ind, ]
+Test_Data_Ans <- Churn_Train5[-Training_ind, ]
+
+TrainingData$state<-as.character(TrainingData$state)
+Test_Data_Ans$state<-as.character(Test_Data_Ans$state)
+#Remove churn column from test data.
+Test_Data_churn  <- Test_Data_Ans[,-16]
+
+#Create Model
+Model <- glm(churn~. - state -area_code , family = "binomial", data = TrainingData)
+Model
+
+#Run prediction on test data .
+Test_Data_Ans$Predict <- predict(Model,Test_Data_Ans , type = "response")
+
+
+#Evaluate model using roc.
+library(pROC)
+roc(Test_Data_Ans$churn,Test_Data_Ans$Predict)
+
+qqnorm(Model$residuals,col="red")
+qqline(Model$residuals)
+
+####################Analyzing Confusion Matrix for Training Data#####################
+
+Predicted_values <- predict(Model,TrainingData,type = "response")
+Predicted_values<-as.factor(Predicted_values>0.55)
+levels(Predicted_values)<- list(no='FALSE', yes='TRUE')
+table(Predicted=Predicted_values,True=TrainingData$churn)
+#####Taking 45 % since the FP/TP=57/59, FN=237, TN=1636 . We would choose a smaller percentage threshold since the False negatives are increasing with increasing threshold. 
+
+Tournament_week1<-read.csv("D:\\UniversityData\\Allstdydata\\businessanalytics\\project\\Tournament_Week1_Test.csv")
+Tournament_data<-Tournament_week1
+Tournament_week1$Predict <- predict(treemodel,Tournament_week1 , type = "class")
+
+
+#########################USING CLASSIFICATION TREE-FINALLY CHOSEN -DUE TO BETTER PREDICTION ######################################################RESULTS##################################
+library(tree)
+treemodel <- tree(churn~. - state -area_code, data = TrainingData)
+summary(treemodel)
+tree(formula = churn ~. - state - area_code, data = TrainingData)
+plot(treemodel)
+Predicted_values1 <- predict(treemodel, TrainingData, type = "class" )
+cn<- print(table(Predicted_values1, TrainingData$churn, dnn=c("Predicted", "Actual")))
+
+Accuracy <- print((cn[2,2]+cn[1,1])/sum(cn) * 100)   # 94% accuracy
+
+
+  
+```
+
