@@ -16,8 +16,8 @@ R and various R packages like : lpSolveAPI,dplyr,benchmarking,GenSA,ggplot2
 Topis:
 1. Quantitative Modelling: Linear Programming, LP duality, Transportaion & Assignment Problems, Goal Programming , DEA(Data Envelopment Analysis),Network models , Linear models, Simulated Annealing using GenSA 
 2. Data Wrangling using R
-
+3. Prediction of customers who are going to churn using Telecom data. #File Churn_Prediction_Project
 
 To be Updated:
 1. Prediction of Number of Passengers for New York City Taxi.
-2. Prediction of customers who are going to churn using Telecom data.
+
