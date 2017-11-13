@@ -1,0 +1,97 @@
+
+title: "Mixed Integer Programming"
+output: html_notebook
+
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("MIP_Root.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("MIP_SubProblem1.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("MIP_SubProblem2.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("MIP_SubProblem3.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("MIP_SubProblem4.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("MIP_SubProblem5.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+
+```{r}
+library(lpSolveAPI)
+x <- read.lp("MIP_SubProblem6.lp")
+x
+solve(x)
+get.objective(x)
+get.variables(x)
+get.constraints(x)
+get.sensitivity.objex(x)
+get.sensitivity.rhs(x)
+get.basis(x)
+```
+
+
