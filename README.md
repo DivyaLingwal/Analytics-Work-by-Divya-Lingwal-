@@ -7,10 +7,10 @@ https://github.com/DivyaLingwal/DivyaLingwal_QM.git
 
 Please address questions or problems regarding the solutions to Divya Lingwal at dlingwal@kent.edu or divya12gem@gmail.com.
 
-Overview
+Overview:
 Solution to various real world Problems using R .
 
-Requriements
+Requriements:
 R and various R packages like : lpSolveAPI,dplyr,benchmarking,GenSA,ggplot2
 
 Topis:
