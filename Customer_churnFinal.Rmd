@@ -1,0 +1,149 @@
+---
+title: "Predicting Customer Churn in a TelecomCompany"
+---
+```{r}
+#Load Churn_Train File to variable Churn_Train
+library(dplyr)
+library(ISLR)
+Churn_Train<-read.csv("D:\\UniversityData\\Allstdydata\\businessanalytics\\project\\Churn_Train.csv")
+```
+#######################DATA CLEANING##########################
+```{r}
+#Treating missing Values
+library(VIM)
+aggr(Churn_Train, col=c('navyblue','red'), numbers=TRUE, sortVars=TRUE, labels=names(Churn_Train), cex.axis=.7, gap=3, ylab=c("Histogram of missing data","Pattern"))
+#Outliers
+qplot(data=Churn_Train1, x=account_length)
+
+library(caret)
+nearZeroVar(Churn_Train)  #Hence,Removing number_vmail_messages
+Churn_Train1 <- Churn_Train[,-6]
+summary(Churn_Train1)
+
+hist(Churn_Train1$total_day_minutes,  main="Histogram for Total_day_minutes", xlab="total_day_minutes", prob = TRUE)
+library(ggplot2)
+ggplot(Churn_Train1, aes(total_day_minutes,total_eve_minutes)) + geom_line(aes(y = total_day_minutes, colour = "total_day_minutes")) +geom_line(aes(y = total_eve_minutes, colour = "total_eve_minutes"))
+
+```
+##################IMPUTATION###############
+```{r}
+#Impute using Median
+
+colMeans(is.na(Churn_Train1))
+
+Churn_Train1[is.na(Churn_Train1$total_intl_calls),'total_intl_calls'] <- median(Churn_Train1$total_intl_calls, na.rm = TRUE)
+
+Churn_Train1[is.na(Churn_Train1$total_eve_minutes),'total_eve_minutes']<-median(Churn_Train1$total_eve_minutes, na.rm = TRUE)
+
+Churn_Train1<-Churn_Train1[complete.cases(Churn_Train1),]
+colMeans(is.na(Churn_Train1))
+
+Churn_Train1$account_length<-abs(Churn_Train1$account_length)
+summary(Churn_Train1)
+```
+
+###################Attribute selection###############
+```{r}
+#Creating new columns
+Churn_Train2<-Churn_Train1
+
+Churn_Train2$Cus_Serv_charge_day <- Churn_Train2$number_customer_service_calls * Churn_Train2$total_day_charge
+Churn_Train2$Cus_Serv_charge_eve <- Churn_Train2$number_customer_service_calls * Churn_Train2$total_eve_charge
+
+```
+####################Dividing into Train and test####################
+```{r}
+#Create training data using 80% of the columns from Churn_Train2.
+#Churn_Train2<-Churn_Train1
+smp_size <- floor(0.80 * nrow(Churn_Train2))
+set.seed(3202)    
+Training_ind <- sample(seq_len(nrow(Churn_Train2)), size = smp_size)
+
+TrainingData <- Churn_Train2[Training_ind, ]
+ValidationData <- Churn_Train2[-Training_ind, ]
+```
+
+################# Model Building###########################
+```{r}
+#Create Model
+Model <- glm(churn~. -state  , family = "binomial", data = TrainingData)
+summary(Model)
+anova(Model)
+
+#Run prediction on test data .
+ValidationData$Predict <- predict(Model,ValidationData , type = "response")
+#Evaluate model using roc.
+library(pROC)
+rocvalue<-roc(ValidationData$churn,ValidationData$Predict)
+plot.roc(rocvalue)
+
+qqnorm(Model$residuals,col="red")
+
+Predicted_values<-predict(Model,newdata =  ValidationData,type = 'response')
+Predicted_values <- as.factor(Predicted_values>0.50)
+levels(Predicted_values)<- list(no='FALSE', yes='TRUE')
+table(Predicted=Predicted_values,True=ValidationData$churn)
+
+```
+#############USING CLASSIFICATION TREE-FINALLY CHOSEN -DUE TO BETTER PREDICTION ###########
+```{r}
+library(rpart)
+TrainingData1<-TrainingData
+TrainingData1$state<-NULL
+TrainingData1$area_code<-NULL
+TrainingData1$account_length<-NULL
+treemodel1 <- rpart(churn~.   , data =  TrainingData1, method = 'class')
+summary(treemodel1)
+#tree(formula = churn ~. -state -area_code, data = TrainingData)
+plot(treemodel1)
+text(treemodel1)
+
+library(rattle)
+fancyRpartPlot(treemodel1)
+Predicted_values1<-predict(treemodel1,ValidationData,type = 'prob')
+rocvalue=roc(ValidationData$churn,Predicted_values1[,2])
+plot.roc(rocvalue)
+rsq.rpart(treemodel1)
+
+```
+```{r}
+####################Analyzing Confusion Matrix for Training Data#####################
+
+Predicted_values1<-predict(treemodel1,newdata =  ValidationData,type = 'class')
+#Predicted_values1 <- as.factor(Predicted_values1>0.70)
+#levels(Predicted_values1)<- list(no='FALSE', yes='TRUE')
+table(Predicted=Predicted_values1,True=ValidationData$churn)
+#####Taking 45 % since the FP/TP=57/9, FN=237, TN=1636 . We would choose a smaller percentage threshold since the False negatives are increasing with increasing threshold. 
+
+```
+
+```{r}
+#################Reading Tournament Files##############################
+Tournament_week3<-read.csv("D:\\UniversityData\\Allstdydata\\businessanalytics\\project\\Tournament_Week3_Test.csv")
+#Creating same new columns in the Test Data 
+
+Tournament_week3$Cus_Serv_charge_day <-Tournament_week3$number_customer_service_calls * Tournament_week3$total_day_charge
+Tournament_week3$Cus_Serv_charge_eve <-Tournament_week3$number_customer_service_calls * Tournament_week3$total_eve_charge
+
+
+
+Tournament_week3$Predict <- predict(treemodel1,Tournament_week3 , type = 'prob')
+write.csv(Tournament_week3,"Tournament_week3_Prediction.csv")
+
+
+Final_League<-read.csv("D:\\UniversityData\\Allstdydata\\businessanalytics\\project\\FinalLeague_Test.csv")
+
+Final_League$Cus_Serv_charge_day <-Final_League$number_customer_service_calls * Final_League$total_day_charge
+Final_League$Cus_Serv_charge_eve <- Final_League$number_customer_service_calls * Final_League$total_eve_charge
+
+Final_League$Predict1 <- predict(treemodel1,Final_League, type = 'prob')
+write.csv(Final_League,"Final_League_Prediction.csv")
+
+
+
+```
+
+
+
+
+
