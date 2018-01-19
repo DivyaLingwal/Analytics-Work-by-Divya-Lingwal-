@@ -1,5 +1,5 @@
 ---
-title: Predicting pickups for Taxi data NYC
+title: Predicting pickups using Taxi data NYC
 ---
 
 
