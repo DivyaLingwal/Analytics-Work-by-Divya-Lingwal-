@@ -14,24 +14,27 @@ library(forecast)
 Amtrak.data <- read.csv("C:\\Users\\divya\\Documents\\GitHub\\60095_201810\\Amtrak.csv")
 Amtrak.data
 ```
+```{r}
 # creating time series object using ts()
 # ts() takes three arguments: start, end, and freq. 
 # with monthly data, the frequency of periods per season is 12 (per year). 
 # arguments start and end are (season number, period number) pairs. 
 # here start is Jan 1991: start = c(1991, 1); end is Mar 2004: end = c(2004, 3).
-```{r}
+
 ridership.ts <- ts(Amtrak.data$Ridership, 
     start = c(1991, 1), end = c(2004, 3), freq = 12)
 plot(ridership.ts, xlab = "Time", ylab = "Ridership (in 000s)", ylim = c(1300, 2300))
 ```
+```{r}
 # creating short time series
 # window() to create a new, shorter time series of ridership.ts
 # for the new three-year series, start time is Jan 1997 and end time is Dec 1999
-```{r}
+
 ridership.ts.3yrs <- window(ridership.ts, start = c(1997, 1), end = c(1999, 12))
 ```
-# fit a linear regression model to the time series
 ```{r}
+# fit a linear regression model to the time series
+
 ridership.lm <- forecast::tslm(ridership.ts ~ trend + I(trend^2))
 
 ```
@@ -47,9 +50,10 @@ plot(ridership.ts, xlab = "Time", ylab = "Ridership (in 000s)", ylim = c(1300, 2
 lines(ridership.lm$fitted, lwd = 1)
 
 ```
-Now we do Naive forecasts
-First split the data into training and validation
 ```{r}
+#Now we do Naive forecasts
+#splitting the data into training and validation
+
 nValid <- 36
 nTrain <- length(ridership.ts) - nValid
 # partitioning the data
@@ -87,11 +91,10 @@ arrows(2004.5, 2450, 2006, 2450, code = 3, length = 0.1, lwd = 1, angle = 30)
 forecast::accuracy(naive.pred, valid.ts)
 forecast::accuracy(snaive.pred, valid.ts)
 ```
-
-Now, modelling the time series using regression models
+```{r}
+#Now, modelling the time series using regression models
 Linear Trend
 
-```{r}
 library(forecast)
 
 Amtrak.data <- read.csv("Amtrak.csv")
@@ -108,9 +111,9 @@ plot(ridership.ts, xlab = "Time", ylab = "Ridership", ylim = c(1300,2300),
      bty = "l")
 lines(ridership.lm$fitted, lwd = 2)
 ```
-
-Now, run the model using validation and training sets
 ```{r}
+#Now, running the model using validation and training sets
+
 # fitting linear trend model to training set and create forecasts
 train.lm <- tslm(train.ts ~ trend)
 train.lm.pred <- forecast(train.lm, h = nValid, level = 0)
@@ -126,13 +129,13 @@ plot(train.lm.pred$residuals, ylim = c(-420, 500),  ylab = "Forecast Errors",
 axis(1, at = seq(1991, 2006, 1), labels = format(seq(1991, 2006, 1)))
 lines(valid.ts - train.lm.pred$mean, lwd = 1)
 ```
-Summmary
+
 ```{r}
 summary(train.lm)
 ```
-
-Now, let's fit an exponential trend
 ```{r}
+#Now, let's fit an exponential trend
+
 # fitting exponential trend using tslm() with argument lambda = 0 
 train.lm.expo.trend <- tslm(train.ts ~ trend, lambda = 0)
 train.lm.expo.trend.pred <- forecast(train.lm.expo.trend, h = nValid, level = 0)
@@ -149,9 +152,9 @@ lines(train.lm.linear.trend.pred$fitted, lwd = 2, col = "black", lty = 3)
 lines(train.lm.linear.trend.pred$mean, lwd = 2, col = "black", lty = 3)
 lines(valid.ts)
 ```
-
-Now, fitting a quadratic trend as it usually gives the best result
 ```{r}
+#Now, fitting a quadratic trend as it usually gives the best result
+
 #fit quadratic trend using function I(), which treats an object "as is".
 train.lm.poly.trend <- tslm(train.ts ~ trend + I(trend^2))
 summary(train.lm.poly.trend)
@@ -169,16 +172,17 @@ plot(train.lm.poly.trend$residuals, ylim = c(-400, 550),  ylab = "Forecast Error
 axis(1, at = seq(1991, 2006, 1), labels = format(seq(1991, 2006, 1)))
 lines(valid.ts - train.lm.poly.trend.pred$mean, lwd = 1)
 ```
-
-Now, adding seasonality
-New file AmtrakTS has a column called Season
 ```{r}
+#Now, adding seasonality
+#New file AmtrakTS has a column called Season
+
 AmtrakTS.data <- read.csv("AmtrakTS.csv")
 AmtrakTS.data
 
 ```
-splitting the data into training and validation
 ```{r}
+#splitting the data into training and validation
+
 ridership.ts <- ts(AmtrakTS.data$Ridership, 
     start = c(1991, 1), end = c(2004, 3), freq = 12)
 nValid <- 36
@@ -190,14 +194,15 @@ valid.ts <- window(ridership.ts, start = c(1991, nTrain + 1),
 
 ```
 
-# including season as a predictor in tslm(). Here it creates 11 dummies
 ```{r}
+# including season as a predictor in tslm(). Here it creates 11 dummies
+
 train.lm.season <- tslm(train.ts ~ season)
 summary(train.lm.season)
 ```
-
-Now adding trend to the season data
 ```{r}
+#Now adding trend to the season data
+
 train.lm.trend.season <- tslm(train.ts ~ trend + I(trend^2) + season)
 summary(train.lm.trend.season)
 train.lm.trend.season.pred <- forecast(train.lm.trend.season, h = nValid, level = 0)
