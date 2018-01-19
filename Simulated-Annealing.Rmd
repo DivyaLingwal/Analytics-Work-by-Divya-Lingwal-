@@ -1,7 +1,7 @@
 ---
 title: "Simulated Annealing - GenSA"
 output: html_notebook
-Comaprison of different algos
+Comparison of different algos
 ---
 References: 
 1. https://journal.r-project.org/archive/2013/RJ-2013-002/RJ-2013-002.pdf
@@ -65,8 +65,7 @@ out.GenSA <- GenSA(lower = lower, upper = upper, fn = Rastrigin, control = list(
 out.GenSA[c("value")]
 
 ```
-Let's use SA on our book test function. Note that we are converting a
-maximization problem to a minimization problem
+Converting a maximization problem to a minimization problem
 
 ```{r}
 testfun <- function(x) {
@@ -82,9 +81,7 @@ out.GenSA <- GenSA(lower=lower, upper=upper, fn = testfun)
 out.GenSA[c("value","par")]   # answer is location x=20 and global minimum is -44000000..
 
 ```
-Risk allocation portfolios
 
-Mean-risk models were developed in the 1950s for portfolio selection problems. Value-at-Risk (VaR) and Conditional Value-at-Risk (CVaR) are the most popular measures of downside risk. Mullen et al. (2011) and Ardia et al. (2011) used DEoptim to find the portfolio weights for which the portfolio has the lowest CVaR and each investment can contribute at most 22.5% to total portfolio CVaR risk.For details, please refer to Mullen et al. (2011); Ardia et al. (2011). The code for objective function in portfolio optimization are from Ardia et al. (2011).
 ```{r}
 library("quantmod")
 tickers <- c("GE", "IBM", "JPM", "MSFT", "WMT")
@@ -112,7 +109,7 @@ tmp2 <- max(CVaR$pct_contrib_ES - 0.225, 0)
 out <- tmp1 + 1e3 * tmp2
 return(out)
 }
-# Now run GenSA
+# Now running GenSA
 set.seed(1234)
 fn.call <<- 0
 out.GenSA <- GenSA(fn = obj, lower = rep(0, 5), upper = rep(1, 5),
