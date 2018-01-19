@@ -81,20 +81,67 @@ Pickups<- merged_data_test %>% group_by(Hour_of_the_day) %>% summarize(Pickups=n
 merge(merged_data_test,Pickups, by="Hour_of_the_day")
 
 
-Model<-lm(Pickups~Hour_of_the_day+PULocationID,data=merged_data_train)
+```
+```{r}
+#Diving into test,Validation and train
+index <- sample(1:nrow(merged_data1),round(0.6*nrow(merged_data1)))
+train_data <- merged_data1[index,]
+test <- merged_data1[-index,]
 
-#write.csv(merged_data_train,file="merged_data_train.csv",row.names=FALSE) 
-#write.csv(merged_data_test,file="merged_data_test.csv",row.names=FALSE) 
-library(gvlma)
+index1 <- sample(1:nrow(test),round(0.5*nrow(test)))
+Validation_data <- test[index1,]
+Test_data <- test[-index,]
+```
+```{r}
+#Converting Data into Numeric
+#merged_data_train$DayOfTheWeek<- as.numeric(merged_data_train$DayOfTheWeek, levels = c("Mon", "Tues", "Wed","Thurs", "Fri", "Sat", "Sun"),ordered = TRUE)
+#merged_data_test$DayOfTheWeek<- as.numeric(merged_data_test$DayOfTheWeek, levels = c("Mon", "Tues", "Wed","Thurs", "Fri", "Sat", "Sun"),ordered = TRUE)
+```
+```{r}
+#Regression Model
+View(train_data)
+fit=lm(Pickups ~ Hour_of_the_day + PULocationID + lpep_pickup_date + lpep_pickup_time  + average.temperature +precipitation_NEW +snow.fall_NEW ,data=train_data)
+summary(fit)
+anova(fit)
+maxPickup <- max(train_data$Pickups)
+plot(predict(fit),train_data$Pickups,
+      xlab="predicted number of pickups",ylab="actual number of Pickups",col="Blue")
+Corner_text(text="Use Corner_text() function")
+hist(fit$residuals)
+qqnorm(fit$residuals,col="red")
 
+```
+```{r}
+library(rpart)
+library(ISLR)
+Treefit2<- rpart(Pickups ~ Location_Day_Hour+Hour_of_the_day + PULocationID + average.temperature +precipitation_NEW +snow.fall_NEW +DayOfTheWeek +Location_Hour ,train_data,method="anova")
+summary(Treefit2)
+train_data$Predict<- predict(Treefit2,newdata = train_data,type ='vector' )
+library(pROC)
+roc(train_data$Predict,train_data$Pickups)
+library(rattle)
+fancyRpartPlot(Treefit)
 
-#Discarding few more attribute 
-Selected_Attributes<- subset(complete_data,,select = c(lpep_pickup_time,PULocationID,DOLocationID,passenger_count,trip_distance,Hour_of_the_day,DayOfTheWeek,maximum.temperature,minimum.temperature,average.temperature,precipitation_NEW,snow.fall_NEW,snow.depth_NEW,Month_of_year))
+plot(predict(Treefit2),train_data$Pickups,
+      xlab="predicted number of pickups",ylab="actual number of Pickups",col="Blue")
 
-
-#extracted few important features
-Extracted_features<- subset(complete_data,,select = c(lpep_pickup_time,PULocationID,DOLocationID,Hour_of_the_day,DayOfTheWeek,maximum.temperature, minimum.temperature,average.temperature,precipitation_NEW,snow.fall_NEW,snow.depth_NEW,Month_of_year))
-
-
+plot(train_data$Hour_of_the_day, fit$residuals, 
++     ylab="Residuals", xlab="Hour_of_the_day", 
++     main="Residual analysis") 
+abline(0, 0) 
+```
+```{r}
+library(clusterGeneration)
+require(randomForest)
+library(mnormt)
+fitR=randomForest(Pickups~ PULocationID   , data=train_data)
+summary(fitR)
+str(train_data1)
+importance(fitR)
+varImpPlot(fit)
+```
+```{r}
+library(e1071)
+model_svm <- svm(Pickups ~ Hour_of_the_day + PULocationID + average.temperature +precipitation_NEW +snow.fall_NEW +DayOfTheWeek  ,train_data)
 ```
 
