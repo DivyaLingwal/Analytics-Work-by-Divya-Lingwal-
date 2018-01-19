@@ -13,7 +13,7 @@ Solution to various real world Problems using R .
 Requriements:
 R and various R packages like : lpSolveAPI,dplyr,benchmarking,GenSA,ggplot2,RWeka,Tree,ggplot2,Lubridate,plyr,ISLR,forecast
 
-Topis:
+Project works and other codes done by me:
 1. Quantitative Modelling: Linear Programming, LP duality, Transportaion & Assignment Problems, Goal Programming , DEA(Data Envelopment Analysis),Network models , Linear models, Simulated Annealing using GenSA 
 2. Data Wrangling using R
 3. Predicting Flight Delays
