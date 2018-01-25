@@ -1,0 +1,496 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+ 
+```{r}
+#install.packages("forecast")
+library(forecast)
+set.seed(2018)
+```
+
+```{r}
+Sept11.data <- read.csv("D:\\UniversityData\\Allstdydata\\Special topics\\Sept11Travel.csv")
+Sept11.data
+```
+# create time series object using ts()
+# ts() takes three arguments: start, end, and freq. 
+# with monthly data, the frequency of periods per season is 12 (per year). 
+# arguments start and end are (season number, period number) pVehicles. 
+# here start is Jan 1990: start = c(1990, 1); end is Mar 2004: end = c(2004, 4).
+```{r}
+AirTravel.ts <- ts(Sept11.data$Air.travel, start = c(1990, 1), end = c(2004, 4), freq = 12)
+AirTravel.ts
+RailTravel.ts <- ts(Sept11.data$Rail.travel, start = c(1990, 1), end = c(2004, 4), freq = 12)
+RailTravel.ts
+VehicleTravel.ts <- ts(Sept11.data$Vehicle.travel,start = c(1990, 1), end = c(2004, 4), freq = 12)
+VehicleTravel.ts
+plot(AirTravel.ts, xlab = "Time", ylab = "Air Travel (in 000s)", ylim = c(29672400, 69003600))
+plot(RailTravel.ts, xlab = "Time", ylab = "Rail Travel (PM)", ylim = c(326874250, 664013880))
+plot(VehicleTravel.ts, xlab = "Time", ylab = "Vehicle Travel (in billions)", ylim = c(155, 262))
+
+```
+# create short time series
+# use window() to create a new, shorter time series of AirTravel.ts
+# for the new three-year series, start time is oct 1st 2001 and end time is Dec 1999
+```{r}
+AirTravel.ts.3yrs <- window(AirTravel.ts, start = c(2001, 1), end = c(2003, 9))
+AirTravel.ts.3yrs
+plot(AirTravel.ts.3yrs, xlab = "Time", ylab = "Air Travel (in 000s)")
+
+RailTravel.ts.3yrs <- window(RailTravel.ts, start = c(2001, 1), end = c(2002, 10))
+RailTravel.ts.3yrs
+plot(RailTravel.ts.3yrs, xlab = "Time", ylab = "Air Travel (in 000s)")
+
+VehicleTravel.ts.3yrs <- window(VehicleTravel.ts, start = c(2001, 1), end = c(2002, 10))
+VehicleTravel.ts.3yrs
+plot(VehicleTravel.ts.3yrs, xlab = "Time", ylab = "Air Travel (in 000s)")
+```
+# fit a linear regression model to the time series
+```{r}
+AirTravel.lm <- forecast::tslm(AirTravel.ts ~ trend + I(trend^2))
+
+```
+# shorter and longer time series
+
+```{r}
+par(mfrow = c(2, 1))
+plot(AirTravel.ts, xlab = "Time", ylab = "AirTravel (in 000s)")
+#plot(AirTravel.ts, xlab = "Time", ylab = "Ridership (in 000s)", ylim = c(1300, 2300))
+# overlay the fitted values of the linear model
+lines(AirTravel.lm$fitted, lwd = 1)
+
+```
+Now we do Naive forecasts
+First split the data into training and validation
+```{r}
+nValid <- 31
+nTrain <- length(AirTravel.ts) - nValid
+# partition the data
+AirTrain.ts <- window(AirTravel.ts, start = c(1990, 1), end = c(1990, nTrain))
+AirValid.ts <- window(AirTravel.ts, start = c(1990, nTrain + 1),
+                   end = c(1990, nTrain + nValid))
+AirTrain.ts
+AirValid.ts
+ 
+
+#nValid <- 31
+nTrain <- length(RailTravel.ts) - nValid
+# partition the data
+RailTrain.ts <- window(RailTravel.ts, start = c(1990, 1), end = c(1990, nTrain))
+RailValid.ts <- window(RailTravel.ts, start = c(1990, nTrain + 1),
+                   end = c(1990, nTrain + nValid))
+RailTrain.ts
+RailValid.ts
+
+#nValid <- 31
+nTrain <- length(VehicleTravel.ts) - nValid
+# partition the data
+VehicleTrain.ts <- window(VehicleTravel.ts, start = c(1990, 1), end = c(1990, nTrain))
+VehicleValid.ts <- window(VehicleTravel.ts, start = c(1990, nTrain + 1),end = c(1990, nTrain + nValid))
+VehicleTrain.ts
+VehicleValid.ts
+```
+
+```{r}
+#  generate the naive and seasonal naive forecasts
+Airnaive.pred <- forecast::naive(AirTrain.ts, h = nValid)
+Airsnaive.pred <- forecast::snaive(AirTrain.ts, h = nValid)
+Airnaive.pred
+Airsnaive.pred
+
+Railnaive.pred <- forecast::naive(RailTrain.ts, h = nValid)
+Railsnaive.pred <- forecast::snaive(RailTrain.ts, h = nValid)
+Railnaive.pred
+Railsnaive.pred
+
+Vehiclenaive.pred <- forecast::naive(VehicleTrain.ts, h = nValid)
+Vehiclesnaive.pred <- forecast::snaive(VehicleTrain.ts, h = nValid)
+Vehiclenaive.pred
+Vehiclesnaive.pred
+```
+
+```{r}
+# plot forecasts and actuals in the training and validation sets
+plot(AirTrain.ts,  ylab = "Air Travel", xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2005), main = "") 
+axis(1, at = seq(1990, 2005, 1), labels = format(seq(1990, 2005, 1)))
+lines(Airnaive.pred$mean, lwd = 2, col = "blue", lty = 1)
+lines(Airsnaive.pred$mean, lwd = 2, col = "red", lty = 1)
+lines(AirValid.ts, col = "grey20", lty = 3)
+lines(c(2004.70 - 3, 2004.70 - 3), c(0, 700999930)) 
+lines(c(2004.25, 2004.25), c(0, 700999930))
+text(1994.25, 69103630, "Training")
+text(2002.75, 69999990, "Validation")
+text(2004.90, 69103630, "Future")
+arrows(2001, 67000000, 1990, 67000000, code = 3, length = 0.1, lwd = 1,angle = 30)
+
+
+plot(RailTrain.ts,  ylab = "Rail Travel", xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2005), main = "") 
+axis(1, at = seq(1990, 2005, 1), labels = format(seq(1990, 2005, 1)))
+lines(Railnaive.pred$mean, lwd = 2, col = "blue", lty = 1)
+lines(Railsnaive.pred$mean, lwd = 2, col = "red", lty = 1)
+lines(RailValid.ts, col = "grey20", lty = 3)
+lines(c(2004.70 - 3, 2004.70 - 3), c(0, 804013874)) 
+lines(c(2004.25, 2004.25), c(0, 804013874))
+text(1996, 664013874, "Training")
+text(2002.75, 664013874, "Validation")
+text(2004.90, 664013874, "Future")
+#arrows(2001, 630000000, 1990, 630000000, code = 3, length = 0.1, lwd = 1,angle = 30)
+#arrows(2004.5 - 3, 2450, 2004, 2450, code = 3, length = 0.1, lwd = 1,angle = 30)
+#arrows(2004.5, 2450, 2006, 2450, code = 3, length = 0.1, lwd = 1, angle = 30)
+  
+  plot(VehicleTrain.ts,  ylab = "Vehicle Travel", xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2005), main = "") 
+  axis(1, at = seq(1990, 2005, 1), labels = format(seq(1990, 2005, 1)))
+  lines(Vehiclenaive.pred$mean, lwd = 2, col = "blue", lty = 1)
+  lines(Vehiclesnaive.pred$mean, lwd = 2, col = "red", lty = 1)
+  lines(VehicleValid.ts, col = "grey20", lty = 3)
+  lines(c(2004.70 - 3, 2004.70 - 3), c(0, 350)) 
+  lines(c(2004.25, 2004.25), c(0, 270))
+  text(1994.25, 240, "Training")
+  text(2002.75, 255, "Validation")
+  text(2004.90, 240, "Future")
+arrows(2001, 67000000, 1990, 67000000, code = 3, length = 0.1, lwd = 1,angle = 30)
+
+```
+
+```{r}
+forecast::accuracy(Airnaive.pred, AirValid.ts)
+forecast::accuracy(Airsnaive.pred, AirValid.ts)
+
+forecast::accuracy(Railnaive.pred, RailValid.ts)
+forecast::accuracy(Railsnaive.pred, RailValid.ts)
+
+forecast::accuracy(Vehiclenaive.pred, VehicleValid.ts)
+forecast::accuracy(Vehiclesnaive.pred, VehicleValid.ts)
+
+```
+
+Now, let us model the time series using regression models
+Linear Trend
+
+```{r}
+library(forecast)
+Sept11.data <- read.csv("D:\\UniversityData\\Allstdydata\\Special topics\\Sept11Travel.csv")
+
+
+# create time series # ts function creates trend variable 
+AirTravel.ts <- ts(Sept11.data$Air.travel, start = c(1990,1), end = c(2001,10), freq = 12)
+RailTravel.ts <- ts(Sept11.data$Rail.travel, start = c(1990,1), end = c(2004,10), freq = 12)
+VehicleTravel.ts <- ts(Sept11.data$Vehicle.travel, start = c(1990,1), end = c(2004,10), freq = 12)
+# produce linear trend model
+AirTravel.lm <- tslm(AirTravel.ts ~ trend)
+RailTravel.lm <- tslm(RailTravel.ts ~ trend)
+VehicleTravel.lm <- tslm(VehicleTravel.ts ~ trend)
+
+# plot the series
+plot(AirTravel.ts, xlab = "Time", ylab = "Air Travel", ylim = c(29672427,69003617),
+     bty = "l")
+
+lines(AirTravel.lm$fitted.values, lwd = 2)
+
+plot(RailTravel.ts, xlab = "Time", ylab = "Rail Travel", ylim = c(326874247,664013874),
+     bty = "l")
+lines(RailTravel.lm$fitted.values, lwd = 2)
+
+plot(VehicleTravel.ts, xlab = "Time", ylab = "Vehicle Travel", ylim = c(153.2544,261.3000),
+     bty = "l")
+lines(VehicleTravel.lm$fitted.values, lwd = 2)
+
+```
+
+Now, run the model using validation and training sets
+```{r}
+# fit linear trend model to training set and create forecasts
+Airtrain.lm <- tslm(AirTrain.ts ~ trend)
+Airtrain.lm.pred <- forecast(Airtrain.lm, h = nValid, level = 0)
+par(mfrow = c(2, 1))
+plot(Airtrain.lm.pred, ylim = c(29672427,69003617),  ylab = "AirTrain", xlab = "Time", 
+     bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2)
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(Airtrain.lm.pred$fitted, lwd = 2, col = "blue")
+lines(AirValid.ts)
+plot(Airtrain.lm.pred$residuals, ylab = "Forecast Errors", 
+    xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(AirValid.ts - Airtrain.lm.pred$mean, lwd = 1)
+
+
+
+Railtrain.lm <- tslm(RailTrain.ts ~ trend)
+Railtrain.lm.pred <- forecast(Railtrain.lm, h = nValid, level = 0)
+par(mfrow = c(2, 1))
+plot(Railtrain.lm.pred, ylim = c(326874247,664013874),  ylab = "RailTrain", xlab = "Time", 
+     bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2)
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(Railtrain.lm.pred$fitted, lwd = 2, col = "blue")
+lines(RailValid.ts)
+plot(Railtrain.lm.pred$residuals, ylab = "Forecast Errors", 
+    xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(RailValid.ts - Railtrain.lm.pred$mean, lwd = 1)
+
+
+
+Vehicletrain.lm <- tslm(VehicleTrain.ts ~ trend)
+Vehicletrain.lm.pred <- forecast(Vehicletrain.lm, h = nValid, level = 0)
+par(mfrow = c(2, 1))
+plot(Vehicletrain.lm.pred, ylim = c(153.2544,261.3000),  ylab = "VehicleTrain", xlab = "Time", 
+     bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2)
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(Vehicletrain.lm.pred$fitted, lwd = 2, col = "blue")
+lines(VehicleValid.ts)
+plot(Vehicletrain.lm.pred$residuals, ylab = "Forecast Errors", 
+    xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(VehicleValid.ts - Vehicletrain.lm.pred$mean, lwd = 1)
+```
+Summmary
+```{r}
+summary(Airtrain.lm)
+summary(Railtrain.lm)
+summary(Vehicletrain.lm)
+```
+
+Now, let's fit an exponential trend
+```{r}
+# fit exponential trend using tslm() with argument lambda = 0 
+Airtrain.lm.expo.trend <- tslm(AirTrain.ts ~ trend, lambda = 0)
+Airtrain.lm.expo.trend.pred <- forecast(Airtrain.lm.expo.trend, h = nValid, level = 0)
+
+# fit linear trend using tslm() with argument lambda = 1 (no transform of y)
+Airtrain.lm.linear.trend <- tslm(AirTrain.ts ~ trend, lambda = 1)
+Airtrain.lm.linear.trend.pred <- forecast(Airtrain.lm.linear.trend, h = nValid, level = 0)
+
+plot(Airtrain.lm.expo.trend.pred, ylim = c(29672427,69003617),  ylab = "Air Travel", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2)
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(Airtrain.lm.expo.trend.pred$fitted, lwd = 2, col = "blue")  # Added in 6-5
+lines(Airtrain.lm.linear.trend.pred$fitted, lwd = 2, col = "black", lty = 3)
+lines(Airtrain.lm.linear.trend.pred$mean, lwd = 2, col = "black", lty = 3)
+lines(AirValid.ts)
+
+# For Rail
+Railtrain.lm.expo.trend <- tslm(RailTrain.ts ~ trend, lambda = 0)
+Railtrain.lm.expo.trend.pred <- forecast(Railtrain.lm.expo.trend, h = nValid, level = 0)
+Railtrain.lm.linear.trend <- tslm(RailTrain.ts ~ trend, lambda = 1)
+Railtrain.lm.linear.trend.pred <- forecast(Railtrain.lm.linear.trend, h = nValid, level = 0)
+
+plot(Railtrain.lm.expo.trend.pred, ylim = c(326874247,664013874),  ylab = "Rail Travel", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2)
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(Railtrain.lm.expo.trend.pred$fitted, lwd = 2, col = "blue")  # Added in 6-5
+lines(Railtrain.lm.linear.trend.pred$fitted, lwd = 2, col = "black", lty = 3)
+lines(Railtrain.lm.linear.trend.pred$mean, lwd = 2, col = "black", lty = 3)
+lines(RailValid.ts)
+
+# For Vehicle
+Vehicletrain.lm.expo.trend <- tslm(VehicleTrain.ts ~ trend, lambda = 0)
+Vehicletrain.lm.expo.trend.pred <- forecast(Vehicletrain.lm.expo.trend, h = nValid, level = 0)
+Vehicletrain.lm.linear.trend <- tslm(VehicleTrain.ts ~ trend, lambda = 1)
+Vehicletrain.lm.linear.trend.pred <- forecast(Vehicletrain.lm.linear.trend, h = nValid, level = 0)
+
+plot(Vehicletrain.lm.expo.trend.pred, ylim = c(153.2544,261.3000),  ylab = "Vehicle Travel", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2)
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(Vehicletrain.lm.expo.trend.pred$fitted, lwd = 2, col = "blue")  # Added in 6-5
+lines(Vehicletrain.lm.linear.trend.pred$fitted, lwd = 2, col = "black", lty = 3)
+lines(Vehicletrain.lm.linear.trend.pred$mean, lwd = 2, col = "black", lty = 3)
+lines(VehicleValid.ts)
+
+
+summary(Airtrain.lm.linear.trend)
+summary(Railtrain.lm.linear.trend)
+summary(Vehicletrain.lm.linear.trend)
+```
+
+Now, fit a quadratic trend
+```{r}
+#fit quadratic trend using function I(), which treats an object "as is".
+Airtrain.lm.poly.trend <- tslm(AirTrain.ts ~ trend + I(trend^2))
+summary(Airtrain.lm.poly.trend)
+Airtrain.lm.poly.trend.pred <- forecast(Airtrain.lm.poly.trend, h = nValid, level = 0)
+
+par(mfrow = c(2,1))
+plot(Airtrain.lm.poly.trend.pred, ylim = c(29672427,69003617),  ylab = "Air Travel", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2)
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1))) 
+lines(Airtrain.lm.poly.trend$fitted, lwd = 2)
+lines(AirValid.ts)
+
+plot(Airtrain.lm.poly.trend$residuals,  ylab = "Forecast Errors", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(AirValid.ts - Airtrain.lm.poly.trend.pred$mean, lwd = 1)
+
+
+#For Rail
+Railtrain.lm.poly.trend <- tslm(RailTrain.ts ~ trend + I(trend^2))
+summary(Railtrain.lm.poly.trend)
+Railtrain.lm.poly.trend.pred <- forecast(Railtrain.lm.poly.trend, h = nValid, level = 0)
+
+par(mfrow = c(2,1))
+plot(Railtrain.lm.poly.trend.pred, ylim = c(326874247,664013874),  ylab = "Rail Travel", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2)
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1))) 
+lines(Railtrain.lm.poly.trend$fitted, lwd = 2)
+lines(RailValid.ts)
+
+plot(Railtrain.lm.poly.trend$residuals,  ylab = "Forecast Errors", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(RailValid.ts - Railtrain.lm.poly.trend.pred$mean, lwd = 1)
+
+
+#For Vehicle
+Vehicletrain.lm.poly.trend <- tslm(VehicleTrain.ts ~ trend + I(trend^2))
+summary(Vehicletrain.lm.poly.trend)
+Vehicletrain.lm.poly.trend.pred <- forecast(Vehicletrain.lm.poly.trend, h = nValid, level = 0)
+
+par(mfrow = c(2,1))
+plot(Vehicletrain.lm.poly.trend.pred, ylim = c(153.2544,261.3000),  ylab = "Vehicle Travel", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2)
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1))) 
+lines(Vehicletrain.lm.poly.trend$fitted, lwd = 2)
+lines(VehicleValid.ts)
+
+plot(Vehicletrain.lm.poly.trend$residuals,  ylab = "Forecast Errors", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(VehicleValid.ts - Vehicletrain.lm.poly.trend.pred$mean, lwd = 1)
+```
+
+Now, let us add seasonality
+Our new file has a column called Season
+
+First split the data into training and validation
+```{r}
+#ridership.ts <- ts(AmtrakTS.data$Ridership, start = c(1991, 1), end = c(2004, 3), freq = 12)
+#nValid <- 31
+#nTrain <- length(ridership.ts) - nValid
+# partition the data
+#train.ts <- window(ridership.ts, start = c(1991, 1), end = c(1991, nTrain))
+#valid.ts <- window(ridership.ts, start = c(1991, nTrain + 1),end = c(1991, nTrain + nValid))
+
+```
+
+# include season as a predictor in tslm(). Here it creates 11 dummies
+```{r}
+Airtrain.lm.season <- tslm(AirTrain.ts ~ season)
+summary(Airtrain.lm.season)
+
+Railtrain.lm.season <- tslm(RailTrain.ts ~ season)
+summary(Railtrain.lm.season)
+
+Vehicletrain.lm.season <- tslm(VehicleTrain.ts ~ season)
+summary(Vehicletrain.lm.season)
+```
+
+Now add trend to the season data
+```{r}
+#The graph has constant seasonal variation,as it does not change when TS increase, so We are using Additive TS instead of Multiplicative TS.
+Airtrain.lm.trend.season <- tslm(AirTrain.ts ~ trend + I(trend^2) + season)
+summary(Airtrain.lm.trend.season)
+Airtrain.lm.trend.season.pred <- forecast(Airtrain.lm.trend.season, h = nValid, level = 0)
+
+par(mfrow = c(2,1))
+plot(Airtrain.lm.trend.season.pred, ylim = c(29672427,69003617),  ylab = "Air Travel", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2,col="red")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1))) 
+lines(Airtrain.lm.trend.season$fitted, lwd = 2)
+lines(AirValid.ts)
+
+plot(Airtrain.lm.trend.season$residuals,  ylab = "Forecast Errors", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(AirValid.ts - Airtrain.lm.trend.season.pred$mean, lwd = 1)
+
+#For Rail
+Railtrain.lm.trend.season <- tslm(RailTrain.ts ~ trend + I(trend^2) + season)
+summary(Railtrain.lm.trend.season)
+Railtrain.lm.trend.season.pred <- forecast(Railtrain.lm.trend.season, h = nValid, level = 0)
+
+par(mfrow = c(2,1))
+plot(Railtrain.lm.trend.season.pred, ylim = c(326874247,664013874),  ylab = "Rail Travel", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2,col="red")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1))) 
+lines(Railtrain.lm.trend.season$fitted, lwd = 2)
+lines(RailValid.ts)
+
+plot(Railtrain.lm.trend.season$residuals,  ylab = "Forecast Errors", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(RailValid.ts - Railtrain.lm.trend.season.pred$mean, lwd = 1)
+
+#For Vehicle
+Vehicletrain.lm.trend.season <- tslm(VehicleTrain.ts ~ trend + I(trend^2) + season)
+summary(Vehicletrain.lm.trend.season)
+Vehicletrain.lm.trend.season.pred <- forecast(Vehicletrain.lm.trend.season, h = nValid, level = 0)
+
+par(mfrow = c(2,1))
+plot(Vehicletrain.lm.trend.season.pred, ylim = c(153.2544,261.3000),  ylab = "Vehicle Travel", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "", flty = 2,col="red")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1))) 
+lines(Vehicletrain.lm.trend.season$fitted, lwd = 2)
+lines(VehicleValid.ts)
+
+plot(Vehicletrain.lm.trend.season$residuals,  ylab = "Forecast Errors", 
+ xlab = "Time", bty = "l", xaxt = "n", xlim = c(1990,2006.25), main = "")
+axis(1, at = seq(1990, 2006, 1), labels = format(seq(1990, 2006, 1)))
+lines(VehicleValid.ts - Vehicletrain.lm.trend.season.pred$mean, lwd = 1)
+```
+```{r}
+# Using STL and Decompose function to suppress Seasonality
+require(graphics)
+DecomposeAirTrain.ts<-ts(Sept11.data$Air.travel,start = c(1998,1),end = c(2001,10),freq = 4)
+Decompose_Air=decompose(DecomposeAirTrain.ts,"additive")
+plot(as.ts(Decompose_Air$seasonal))
+plot(as.ts(Decompose_Air$trend))
+plot(as.ts(Decompose_Air$random))
+plot(Decompose_Air)
+air<-DecomposeAirTrain.ts-Decompose_Air$seasonal
+plot(as.ts(air))
+```
+```{r}
+#For Rail
+DecomposeRailTrain.ts<-ts(Sept11.data$Rail.travel,start = c(1998,1),end = c(2001,10),frequency = 4)
+Decompose_Rail=decompose(DecomposeRailTrain.ts,"additive")
+plot(as.ts(Decompose_Rail$seasonal))
+plot(as.ts(Decompose_Rail$trend))
+plot(as.ts(Decompose_Rail$random))
+plot(Decompose_Rail)
+Rail<-DecomposeRailTrain.ts-Decompose_Rail$seasonal
+plot(as.ts(Rail))
+```
+```{r}
+#For Vehicle
+DecomposeVehicleTrain.ts<-ts(Sept11.data$Vehicle.travel,start = c(2000,1),end = c(2003,10),frequency = 4)
+Decompose_Vehicle=decompose(DecomposeVehicleTrain.ts,"additive")
+plot(as.ts(Decompose_Vehicle$seasonal))
+plot(as.ts(Decompose_Vehicle$trend))
+plot(as.ts(Decompose_Vehicle$random))
+plot(Decompose_Vehicle)
+Vehicle<-DecomposeVehicleTrain.ts-Decompose_Vehicle$seasonal
+plot(as.ts(Vehicle))
+```
+
+```{r}
+
+#Checking whether our Time series is staionary 
+#Time series is stationary if its mean level and variance stay steady over time
+library(lmtest)
+if (gqtest(AirTrain.ts~1)$p.value < 0.10) {
+    x<-log(AirTrain.ts)
+}
+
+ Acf(x)
+ Pacf(x)
+#check if the lags die out
+ 
+Box.test(x,lag=25,type="Ljung-Box")
+#p value <0.05 suggest that our TS is staionary
+```
+
+
+
+
+
