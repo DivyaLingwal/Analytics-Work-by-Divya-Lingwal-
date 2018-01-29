@@ -117,30 +117,61 @@ table(Predicted=Predicted_values1,True=ValidationData$churn)
 
 ```
 
+
 ```{r}
-#################Reading Tournament Files##############################
-Tournament_week3<-read.csv("D:\\UniversityData\\Allstdydata\\businessanalytics\\project\\Tournament_Week3_Test.csv")
-#Creating same new columns in the Test Data 
+#Random forest
+library(xgboost)
+library(randomForest)
+library(party)
+sample.ind <- sample(2, 
+                     nrow(TrainingData),
+                     replace = T,
+                     prob = c(0.6,0.4))
+Train.dev <- TrainingData[sample.ind==1,]
+Train.val <- TrainingData[sample.ind==2,]
 
-Tournament_week3$Cus_Serv_charge_day <-Tournament_week3$number_customer_service_calls * Tournament_week3$total_day_charge
-Tournament_week3$Cus_Serv_charge_eve <-Tournament_week3$number_customer_service_calls * Tournament_week3$total_eve_charge
+class(Train.dev$churn)
+varNames <- names(Train.dev)
+# Exclude ID or Response variable
+varNames <- varNames[!varNames %in% c("churn")]
+# add + sign between exploratory variables
+varNames1 <- paste(varNames, collapse = "+")
+# Add response variable and convert to a formula object
+rf.form <- as.formula(paste("churn", varNames1, sep = " ~ "))
 
+TrainingModel.rf <- randomForest(rf.form,
+                              Train.dev,
+                              ntree=500,
+                              importance=T)
+plot(TrainingModel.rf)
 
+# Variable Importance Plot
+varImpPlot(TrainingModel.rf,
+           sort = T,
+           main="Variable Importance",
+           n.var=5)
+# Predicting response variable
+Train.dev$predicted.response <- predict(TrainingModel.rf ,Train.dev)
+# Load Library or packages
+library(e1071)
+library(caret)
+## Loading required package: lattice
+## Loading required package: ggplot2
+# Create Confusion Matrix
+confusionMatrix(data=Train.dev$predicted.response,
+                reference=Train.dev$churn,
+                positive='yes')
+#Accuracy of 91% on Training
 
-Tournament_week3$Predict <- predict(treemodel1,Tournament_week3 , type = 'prob')
-write.csv(Tournament_week3,"Tournament_week3_Prediction.csv")
+# Predicting response variable
+Train.val$predicted.response <- predict(TrainingModel.rf ,Train.val)
+confusionMatrix(data=Train.val$predicted.response,
+                reference=Train.val$churn,
+                positive='yes')
 
-
-Final_League<-read.csv("D:\\UniversityData\\Allstdydata\\businessanalytics\\project\\FinalLeague_Test.csv")
-
-Final_League$Cus_Serv_charge_day <-Final_League$number_customer_service_calls * Final_League$total_day_charge
-Final_League$Cus_Serv_charge_eve <- Final_League$number_customer_service_calls * Final_League$total_eve_charge
-
-Final_League$Predict1 <- predict(treemodel1,Final_League, type = 'prob')
-write.csv(Final_League,"Final_League_Prediction.csv")
-
-
-
+#accuracy of 88% on test data
+#Neural networks
+library(pytorch)  # or use tensorflow
 ```
 
 
