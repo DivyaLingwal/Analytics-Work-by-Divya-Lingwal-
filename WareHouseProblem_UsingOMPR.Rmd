@@ -85,6 +85,7 @@ library(ROI.plugin.glpk)
 result <- solve_model(model, with_ROI(solver = "glpk", verbose = TRUE))
 ```
 
+#We solved the problem with an objective value of 33222.
 
 ```{r}
 suppressPackageStartupMessages(library(dplyr))
@@ -93,6 +94,8 @@ matching <- result %>%
   filter(value > .9) %>%  
   select(i, j)
 ```
+
+#The last step is to add the assignments to the previous plot we generated.
 ```{r}
 plot_assignment <- matching %>% 
   inner_join(customer_locations, by = c("i" = "id")) %>% 
