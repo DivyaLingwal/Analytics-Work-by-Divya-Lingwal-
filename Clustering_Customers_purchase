@@ -1,0 +1,157 @@
+---
+title: "Cluster Models"
+output: html_notebook
+---
+
+```{r}
+#########################################loading data#########################################
+library(plyr)
+library(NbClust)
+library(caret)
+library(factoextra)
+library(ggpubr)
+#installing development version of packages due to installation problem
+#install.packages("rlang",type="win.binary") 
+#devtools::install_github("kassambara/ggpubr")
+#devtools::install_github("kassambara/factoextra")
+```
+```{r}
+#########################################Data cleaning#########################################
+#removed all the "%" signs in excel to have them in decimal format
+BathSoap <- read.csv("D:\\UniversityData\\Allstdydata\\Special topics\\BathSoap.csv")
+summary(BathSoap)
+BathSoap1<-BathSoap
+
+#subtituting 0 values
+BathSoap1$MT[BathSoap1$MT=="0"]<-5  #random
+BathSoap1$HS[BathSoap1$HS=="0"]<-5    #assuming average household family size to be 5
+BathSoap1$EDU[BathSoap1$EDU=="0"]<-5 # since majority of the students were educated till 12th standard
+BathSoap1$CS[BathSoap1$CS=="0"]<-1  #Since majority of people have TV at home , data shows
+#Substituted half of the 0 values with Male and half with female for attribute SEX=0, This was done in excel considering small size of data
+# For FES attribute, Substituted 1/3 of the 0 values with 1 and next 1/3rd with 2 and the rest with 3, This was done in excel considering small size of data
+
+```
+```{r}
+#########################################Data Preparation#########################################
+#changing column names
+row.names(BathSoap1)<-BathSoap1$Member.id
+BathSoap1$Member.id<-NULL
+BathSoap2<-BathSoap1
+
+#Normalize
+Normalized_bathSoap <- as.data.frame(scale(BathSoap2))  #not normalizing member id
+#Normalized_bathSoap <- predict(preprocessParams, BathSoap1)
+
+#str(Normalized_bathSoap)
+
+#Creating new field brand loyality index
+max(BathSoap1$Br..Cd..24,BathSoap1$Br..Cd..272,BathSoap1$Br..Cd..352,BathSoap1$Br..Cd..481,BathSoap1$Br..Cd..5,BathSoap1$Br..Cd..55,BathSoap1$Br..Cd..57..144,BathSoap1$Br..Cd..286,BathSoap1$Others.999)#1
+max(BathSoap1$Br..Cd..272,BathSoap1$Br..Cd..352)
+max(BathSoap1$Br..Cd..352)
+max(BathSoap1$Br..Cd..481)
+max(BathSoap1$Br..Cd..5)
+max(BathSoap1$Br..Cd..55)#1
+max(BathSoap1$Br..Cd..57..144)#1
+max(BathSoap1$Br..Cd..286)#1
+max(BathSoap1$Others.999)#1
+Normalized_bathSoap1<-Normalized_bathSoap
+#finding the maximum laoyality of every customer towards any brand
+Normalized_bathSoap1$max_num_score<-apply(Normalized_bathSoap1[, 22:30], 1, max)
+#giving equal weightage to customer customers buying from various brands and the brand runs the have between different brands, Also I have provided less weightage to customers and their max % volume of purchase from any brand, because we do not know whether he bought all the items together in 1 visit or few items on many visits
+Normalized_bathSoap1$BrandLoyaltyIndex<-0.4*Normalized_bathSoap1$No..of.Brands + 0.4*Normalized_bathSoap1$Brand.Runs + 0.2*Normalized_bathSoap1$max_num_score
+
+#segregating data into one depicting puchase behaviour and another for price analysis
+Purchase_behaviour <- Normalized_bathSoap1[,c(1:10,13:21,47)]
+Purchase_basis <- Normalized_bathSoap1[,c(31:45)]
+```
+
+```{r}
+#simple clustering with euclidean distance measure
+d <- dist(Purchase_behaviour) #Euclidean
+summary(d)
+fit.w <- hclust(d,method="ward.D")
+fit.w$height
+fit.w$order
+plot(fit.w,hang=-1,cex=0.8,main="Ward linking clusters")
+```
+```{r}
+###################################USing k-means clustering #######################################
+
+##########FOR PURCHASE BEHAVIOUR Dataset################
+library(NbClust)
+set.seed(1234)
+nc <- NbClust(data = Purchase_behaviour,distance = "euclidean", min.nc=2,max.nc=5,method="kmeans",index = "all", alphaBeale = 0.1) 
+#Bestnumber of clusters are 5
+table(nc$Best.nc[1,])
+barplot(table(nc$Best.n[1,]),
+        xlab="Number of Clusters", ylab="Number of criteria",
+        main = "Number of clusters chosen by Criteria ")
+
+km = kmeans(Purchase_behaviour, 5, nstart=25)
+km
+km$size
+dist(km$centers)
+library(cluster)
+#library(ggpubr)
+fviz_nbclust(Purchase_behaviour, kmeans, method = "wss") + geom_vline(xintercept = 5, linetype = 2)+labs(subtitle = "Elbow method")
+wss <- numeric(5)
+for (k in 1:5) 
+wss[k] <- sum(kmeans(Purchase_behaviour, centers=k, nstart=25)$withinss)
+plot(1:5,wss,type="b",xlab="Number of Clusters", ylab="Within Sums of squares")
+wss[]
+#find elbow point/optimal
+
+##########FOR PURCHASE BASIS Dataset################
+nc1 <- NbClust(data = Purchase_basis,distance = "euclidean", min.nc=2,max.nc=5,method="kmeans",index = "all", alphaBeale = 0.1)  
+#Bestnumber of clusters are 2
+table(nc1$Best.nc[1,])
+barplot(table(nc1$Best.n[1,]),
+        xlab="Number of Clusters", ylab="Number of criteria",
+        main = "Number of clusters chosen by Criteria are 5")
+km1 = kmeans(Purchase_basis, 2, nstart=25)
+#km1
+km1$size
+dist(km1$centers)
+fviz_nbclust(Purchase_basis, kmeans, method = "wss") +
+    geom_vline(xintercept = 2, linetype = 2)+
+  labs(subtitle = "Elbow method")
+
+##########FOR PURCHASE BASIS and Purchase behaviour combined Dataset################
+nc2 <- NbClust(data = Normalized_bathSoap1[,c(1:10,13:21,31:45,47)],distance = "euclidean", min.nc=2,max.nc=5,method="kmeans",index = "all", alphaBeale = 0.1)  
+#Bestnumber of clusters are 2
+table(nc2$Best.nc[1,])
+barplot(table(nc2$Best.n[1,]),
+        xlab="Number of Clusters", ylab="Number of criteria",
+        main = "Number of clusters chosen by Criteria are 5")
+km2 = kmeans(Normalized_bathSoap1[,c(1:10,13:21,31:45,47)], 2, nstart=25)
+#km2
+km2$size
+dist(km2$centers)
+
+fviz_nbclust(Normalized_bathSoap1[,c(1:10,13:21,31:45,47)], kmeans, method = "wss") +
+    geom_vline(xintercept = 2, linetype = 2)+
+  labs(subtitle = "Elbow method")
+
+##########Comparing all three data frames###################
+p1 <- fviz_cluster(km, geom = "point",  data=Purchase_behaviour) + ggtitle("k = 5")
+p2 <- fviz_cluster(km1, geom = "point",  data = Purchase_basis) + ggtitle("k = 2")
+p3 <- fviz_cluster(km2, geom = "point",  data = Normalized_bathSoap1[,c(1:10,13:21,31:45,47)]) + ggtitle("k = 2 for combined data")
+library(gridExtra)
+grid.arrange(p1, p2, p3, nrow = 2)
+Normalized_bathSoap2<-Normalized_bathSoap1[,c(1:10,13:21,31:45,47)]
+
+#Determining best number of cluster by elbow method
+fviz_nbclust(Normalized_bathSoap2, kmeans, method = "wss")
+
+```
+#The third dataset is best to create clusters since,the distance/separation between the clusters is high and there is least overlap between clusters.
+
+Model based clustering. ( https://www.statmethods.net/advstats/cluster.html  )
+```{r}
+# Model Based Clustering
+#install.packages("mclust")
+library(mclust)
+fit <- Mclust(Normalized_bathSoap2)
+plot(fit) # plot results
+summary(fit) # display the best model 
+```
