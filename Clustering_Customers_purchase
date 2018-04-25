@@ -19,11 +19,11 @@ library(ggpubr)
 #########################################Data cleaning#########################################
 #removed all the "%" signs in excel to have them in decimal format
 BathSoap <- read.csv("D:\\UniversityData\\Allstdydata\\Special topics\\BathSoap.csv")
-summary(BathSoap)
+#summary(BathSoap)
 BathSoap1<-BathSoap
 
 #subtituting 0 values
-BathSoap1$MT[BathSoap1$MT=="0"]<-5  #random
+BathSoap1$MT[BathSoap1$MT=="0"]<-10  #Majority have language spoken as 
 BathSoap1$HS[BathSoap1$HS=="0"]<-5    #assuming average household family size to be 5
 BathSoap1$EDU[BathSoap1$EDU=="0"]<-5 # since majority of the students were educated till 12th standard
 BathSoap1$CS[BathSoap1$CS=="0"]<-1  #Since majority of people have TV at home , data shows
@@ -38,8 +38,7 @@ row.names(BathSoap1)<-BathSoap1$Member.id
 BathSoap1$Member.id<-NULL
 BathSoap2<-BathSoap1
 
-#Normalize
-Normalized_bathSoap <- as.data.frame(scale(BathSoap2))  #not normalizing member id
+
 #Normalized_bathSoap <- predict(preprocessParams, BathSoap1)
 
 #str(Normalized_bathSoap)
@@ -54,9 +53,30 @@ max(BathSoap1$Br..Cd..55)#1
 max(BathSoap1$Br..Cd..57..144)#1
 max(BathSoap1$Br..Cd..286)#1
 max(BathSoap1$Others.999)#1
-Normalized_bathSoap1<-Normalized_bathSoap
+
+Normalized_bathSoap1<-BathSoap2
+#Normalized_bathSoap1<-Normalized_bathSoap
 #finding the maximum laoyality of every customer towards any brand
 Normalized_bathSoap1$max_num_score<-apply(Normalized_bathSoap1[, 22:30], 1, max)
+
+#Normalize
+Normalized_bathSoap1 <- as.data.frame(scale(Normalized_bathSoap1))  #not normalizing member id
+
+#for(i in 1:nrow(Normalized_bathSoap1))
+#{
+#if(Normalized_bathSoap1$max_num_score<0.1 &  Normalized_bathSoap1$max_num_score>=0.0) {Normalized_bathSoap1$max_score<-1.0}
+#if (Normalized_bathSoap1$max_num_score<0.2 &  Normalized_bathSoap1$max_num_score>=0.1) Normalized_bathSoap1$max_score<-0.9
+#if(Normalized_bathSoap1$max_num_score<0.3 &  Normalized_bathSoap1$max_num_score>=0.2) Normalized_bathSoap1$max_score<-0.8
+#if(Normalized_bathSoap1$max_num_score<0.4 &  Normalized_bathSoap1$max_num_score>=0.3) Normalized_bathSoap1$max_score<-0.7
+#if(Normalized_bathSoap1$max_num_score<0.5 &  Normalized_bathSoap1$max_num_score>=0.4) Normalized_bathSoap1$max_score<-0.6
+#if(Normalized_bathSoap1$max_num_score<0.6 &  Normalized_bathSoap1$max_num_score>=0.5) Normalized_bathSoap1$max_score<-0.5
+#if(Normalized_bathSoap1$max_num_score<0.7 &  Normalized_bathSoap1$max_num_score>=0.6) Normalized_bathSoap1$max_score<-0.4
+#if(Normalized_bathSoap1$max_num_score<0.8 &  Normalized_bathSoap1$max_num_score>=0.7) Normalized_bathSoap1$max_score<-0.3
+#if(Normalized_bathSoap1$max_num_score<0.9 &  Normalized_bathSoap1$max_num_score>=0.8) Normalized_bathSoap1$max_score<-0.2
+#if(Normalized_bathSoap1$max_num_score<1.0 &  Normalized_bathSoap1$max_num_score>=0.9) {Normalized_bathSoap1$max_score<-0.1}
+#if (Normalized_bathSoap1$max_num_score<1.1 &  Normalized_bathSoap1$max_num_score>=1.0) {Normalized_bathSoap1$max_score<-0.0}
+
+
 #giving equal weightage to customer customers buying from various brands and the brand runs the have between different brands, Also I have provided less weightage to customers and their max % volume of purchase from any brand, because we do not know whether he bought all the items together in 1 visit or few items on many visits
 Normalized_bathSoap1$BrandLoyaltyIndex<-0.4*Normalized_bathSoap1$No..of.Brands + 0.4*Normalized_bathSoap1$Brand.Runs + 0.2*Normalized_bathSoap1$max_num_score
 
@@ -107,7 +127,7 @@ nc1 <- NbClust(data = Purchase_basis,distance = "euclidean", min.nc=2,max.nc=5,m
 table(nc1$Best.nc[1,])
 barplot(table(nc1$Best.n[1,]),
         xlab="Number of Clusters", ylab="Number of criteria",
-        main = "Number of clusters chosen by Criteria are 5")
+        main = "Number of clusters chosen by Criteria ")
 km1 = kmeans(Purchase_basis, 2, nstart=25)
 #km1
 km1$size
@@ -122,7 +142,7 @@ nc2 <- NbClust(data = Normalized_bathSoap1[,c(1:10,13:21,31:45,47)],distance = "
 table(nc2$Best.nc[1,])
 barplot(table(nc2$Best.n[1,]),
         xlab="Number of Clusters", ylab="Number of criteria",
-        main = "Number of clusters chosen by Criteria are 5")
+        main = "Number of clusters chosen by Criteria ")
 km2 = kmeans(Normalized_bathSoap1[,c(1:10,13:21,31:45,47)], 2, nstart=25)
 #km2
 km2$size
@@ -154,4 +174,27 @@ library(mclust)
 fit <- Mclust(Normalized_bathSoap2)
 plot(fit) # plot results
 summary(fit) # display the best model 
+fit$G #shows optimal no of clusters
+fviz_mclust(fit, "BIC", palette = "jco")  # For optimal number of clusters
+fviz_mclust(fit, "classification", geom = "point", 
+            pointsize = 1.5, palette = "jco")
+
+fviz_mclust(fit, "uncertainty", palette = "jco") # In this uncertainty plot, smaller symbols indicate the less uncertain observations.Moreover there is only 1 larger symbol
+
+```
+
+```{r}
+# Model Based Clustering on purchase basis# not preferred, has lot of uncertainity
+#install.packages("mclust")
+library(mclust)
+fit1 <- Mclust(Purchase_basis)
+plot(fit) # plot results
+summary(fit) # display the best model 
+fit$G #shows optimal no of clusters
+fviz_mclust(fit, "BIC", palette = "jco")  # For optimal number of clusters
+fviz_mclust(fit, "classification", geom = "point", 
+            pointsize = 1.5, palette = "jco")
+
+fviz_mclust(fit, "uncertainty", palette = "jco") # In this uncertainty plot, smaller symbols indicate the less uncertain observations.Moreover there is only 1 larger symbol
+
 ```
