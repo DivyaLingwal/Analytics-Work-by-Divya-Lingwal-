@@ -1,0 +1,372 @@
+---
+title: 'Wiki websites Traffic prediction and Exploration'
+---
+#Introduction
+The data contains ~145k time series & holds the traffic data, where each column is a date and each row is an article
+
+### Load libraries and data files
+
+```{r}
+library('caret')
+library('ggplot2') # visualization
+library('ggthemes') # visualization
+library('scales') # visualization
+library('grid') # visualisation
+library('gridExtra') # visualisation
+library('corrplot') # visualisation
+library('ggfortify') # visualisation
+library('ggrepel') # visualisation
+library('RColorBrewer') # visualisation
+library('data.table') # data manipulation
+library('dplyr') # data manipulation
+library('readr') # data input
+library('tibble') # data wrangling
+library('tidyr') # data wrangling
+library('lazyeval') # data wrangling
+library('broom') # data wrangling
+library('stringr') # string manipulation
+library('purrr') # string manipulation
+library('forcats') # factor manipulation
+library('lubridate') # date and time
+library('forecast') # time series analysis
+library('prophet') # time series analysis
+```
+
+### Loading data
+
+```{r}
+TrainData <-fread("C:\\Users\\divya\\OneDrive\\Documents\\GitHub\\DivyaLingwal Analytics Work\\data\\train_1.csv\\train_1.csv")
+dim(TrainData)
+```
+
+# Missing values
+
+```{r}
+sum(is.na(TrainData))/(ncol(TrainData)*nrow(TrainData))   #7% missing values
+#preprocessed <-preProcess(TrainData[,-1],method = "medianImpute")
+#Newdata<-predict(preprocessed,TrainData)
+Newdata<-TrainData
+```
+
+
+Around 7% of missing values in the data set, which is not trivial. We will have to take them into account in our analysis
+
+### Data transformation 
+
+Splitting data into two parts:  Page & tdates. We initially separate the article information into data from wikipedia, wikimedia, and mediawiki due to the different formats of the Pages. After that, we rejoin all page information into a common data set called OnlyPages.
+
+```{r}
+Onlydates <- Newdata %>% select(-Page)
+#Extracting article information from page data and separating it into different columns to make processing easier
+trainprocess <- Newdata %>% select(Page) %>% rownames_to_column()
+mediawiki <- trainprocess  %>% filter(str_detect(Page, "mediawiki"))
+wikimedia <- trainprocess %>% filter(str_detect(Page, "wikimedia"))
+wikipedia <- trainprocess %>% filter(str_detect(Page, "wikipedia")) %>% 
+  filter(!str_detect(Page, "wikimedia")) %>%
+  filter(!str_detect(Page, "mediawiki"))
+
+PageName<- wikipedia %>% separate(Page, into = c("trainprocess", "endOfurl"), sep = ".wikipedia.org_") 
+PageName2<-PageName%>% separate(trainprocess, into = c("article", "background"), sep = -3)
+PageName3<-PageName2%>% separate(endOfurl, into = c("access", "agents"), sep = "_")
+wikipedia<-PageName3%>% mutate( background= str_sub(background,2,3))
+ 
+PageName<- wikimedia %>% separate(Page, into = c("article", "endOfurl"), sep = "_commons.wikimedia.org_") 
+PageName2<-PageName%>% separate(endOfurl, into = c("access", "agents"), sep = "_")
+wikimedia<-PageName2%>% add_column(background = "wikmed")
+
+PageName<- mediawiki %>% separate(Page, into = c("article", "endOfurl"), sep = "_www.mediawiki.org_") 
+PageName2<-PageName%>% separate(endOfurl, into = c("access", "agents"), sep = "_")
+mediawiki<-PageName2%>% add_column(background = "medwik")
+
+#Combining all above created datasets into one
+Onlypages <- wikipedia %>%
+  full_join(wikimedia, by = c("rowname", "article", "background", "access", "agents")) 
+
+head(Onlypages, n = 9)
+```
+
+Now we can search for certain Page articles and filter their meta parameters:
+
+```{r}
+#Visualizing different parameters
+p1 <- Onlypages %>% ggplot(aes(agents)) + geom_bar(fill = "blue")
+p2 <- Onlypages %>% ggplot(aes(access)) + geom_bar(fill = "blue")
+p3 <- Onlypages %>% ggplot(aes(background,fill = background)) + geom_bar() + theme(legend.position = "none")
+p1
+p2
+p3
+```
+
+### Time series extraction
+
+Using a helper functions allows us to extract the time series for a specified row number. The normalised version is to facilitate the comparison between multiple time series curves, to correct for large differences in view count
+
+```{r}
+TS_Extraction <- function(rownr)
+  { 
+  Onlydates %>%
+  filter_((interp(~y == row_number(), .values = list(y = rownr)))) %>%  rownames_to_column %>%gather(dates, value, -rowname) %>% 
+  spread(rowname, value) %>%  mutate(dates = ymd(dates),views = as.integer(`1`)) %>%select(-`1`)
+  }
+
+Normalized_TS_Extract <- function(rownr)
+  {
+  Onlydates %>%
+    filter_((interp(~y == row_number(), .values = list(y = rownr)))) %>%rownames_to_column %>%gather(dates, value, -rowname) %>% 
+    spread(rowname, value) %>%  mutate(dates = ymd(dates),views = as.integer(`1`)) %>%select(-`1`) %>%
+    mutate(views = views/mean(views))
+}
+
+plotting_rows <- function(rownr)
+{
+  sit <- Onlypages %>% filter(rowname == rownr) %>% .$article
+  loc <- Onlypages %>% filter(rowname == rownr) %>% .$background
+  acc <- Onlypages %>% filter(rowname == rownr) %>% .$access
+  TS_Extraction(rownr) %>% ggplot(aes(dates, views)) +geom_line() + geom_smooth(method = "loess", color = "blue", span = 1/5) +
+    labs(title = str_c(sit, " - ", loc, " - ", acc))
+}
+
+##running multiplot(this is a function which is available on google for plotting multiple plots together)
+multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL)
+  {
+  # Make a list from the ... arguments and plotlist
+  plots <- c(list(...), plotlist)
+  numPlots = length(plots)
+  # If layout is NULL, then use 'cols' to determine layout
+  if (is.null(layout)) {
+    # Make the panel
+    # ncol: Number of columns of plots
+    # nrow: Number of rows needed, calculated from # of cols
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                    ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+ if (numPlots==1) {
+    print(plots[[1]])
+  } else {
+    # Set up the page
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    # Make each plot, in the correct location
+    for (i in 1:numPlots) {
+      # Get the i,j matrix positions of the regions that contain this subplot
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+```
+```{r}
+plotting_rows(111)
+```
+# Summary parameter extraction
+Starting with wikipedia data. The idea behind this approach is to probe the parameter space of the time series information along certain key metrics and identify extreme observations that could break our forecasting strategies.
+
+## Basic time series parameters
+parameters taken: mean, standard deviation, amplitude, and slope of a naive linear fit:
+```{r}
+params_ts1 <- function(rownr)
+  {
+  var1 <- Onlydates %>%filter_((interp(~y == row_number(), .values = list(y = rownr)))) %>% rownames_to_column %>% 
+    gather(dates, value, -rowname) %>% spread(rowname, value) %>% mutate(dates = ymd(dates),views = as.integer(`1`))
+  
+  slope <- ifelse(is.na(median(var1$views)),0,summary(lm(views ~ dates, data = var1))$coef[2])
+  slope_error <- ifelse(is.na(median(var1$views)),0,summary(lm(views ~ dates, data = var1))$coef[4])
+
+  paras <- tibble(
+    rowname = rownr,
+    max_view = max(var1$views),
+    min_view = min(var1$views),
+    sd_view = sd(var1$views),
+    mean_view = mean(var1$views),
+    med_view = median(var1$views),
+    slope = slope/slope_error
+  )
+  
+  return(paras)
+}
+```
+#Using subset so that runtime is less
+
+```{r}
+set.seed(41)
+var1 <- sample_n(Onlypages, 4000)
+rows <- var1$rowname
+columns <- c("rowname",  "max_view", "min_view", "sd_view","mean_view", "med_view", "slope")
+
+parameter <- params_ts1(rows[1])
+for (i in seq(2,nrow(var1))){
+  parameter <- full_join(parameter, params_ts1(rows[i]), by = columns)
+}
+parameter <- parameter %>% filter(!is.na(mean_view)) %>%  mutate(rowname = as.character(rowname))
+```
+## Overview visualisations
+
+```{r}
+p1 <- parameter %>%   ggplot(aes(mean_view)) + geom_histogram(fill = "blue", bins = 50) + scale_x_log10()
+p2 <- parameter %>%   ggplot(aes(max_view)) + geom_histogram(fill = "blue", bins = 50) + scale_x_log10()
+p3 <- parameter %>%   ggplot(aes(sd_view/mean_view)) + geom_histogram(fill = "blue", bins = 50) + scale_x_log10()
+p4 <- parameter %>%   ggplot(aes(slope)) + geom_histogram(fill = "blue", bins = 30) + scale_x_continuous(limits = c(-25,25))
+
+p1
+p2
+p3
+p4
+```
+
+Our Insights:
+
+* Distribution of average views is bimodal, with peaks around 100 and 250-300 views. Something similar is true for the number of maximum views, although here the first peak is very narrow.
+
+* The distribution of standard deviations (divided by the mean) is skewed toward higher values with larger numbers of spikes or stronger variability trends. Those will be the observations that are challenging to forecast.
+
+* The slope distribution is resonably symmetric and centred notably above zero.
+
+* The peak in max views around 200-300 is most pronounced in the french pages (fr, in turquoise).
+
+* The english pages have the highest mean and maximum views(as seen before)
+
+
+# Individual observations with extreme parameters
+
+Now focusing on articles for which time series parameters are at the extremes 
+
+##In the full wikipedia data set the top 10 have rownames 91728, 55587, 108341, 70772, 95367, 18357, 95229, 116150, 94975, 77292).
+
+```{r}
+# Large linear slope show observations having highest slope values. 
+parameter %>% arrange(desc(slope)) %>% head(10) %>% select(rowname, slope, everything())
+```
+
+
+```{r}
+parameter %>% arrange(slope) %>% head(10) %>% select(rowname, slope, everything())
+```
+
+
+## High standard deviations
+The top 10 wikipedia rows are 73112, 38947, 72310, 12028, 10425, 85537, 40696, 6807, 117643, and 12680 
+
+```{r}
+parameter %>% arrange(desc(sd_view/mean_view)) %>% head(10) %>%   select(rowname, sd_view, mean_view, max_view, everything())
+```
+## High average views or most popular pages
+```{r}
+parameter %>% arrange(desc(mean_view)) %>% head(10) %>% select(rowname, max_view, mean_view, everything())
+```
+
+# Short-term variability
+A closer look at the short-term variability which we have already seen in earlier plots. Below, we plot a 3-months zoom into the "quiet" parts (i.e. no strong spikes) of different time series:
+
+```{r}
+plot_zoom <- function(rownr, start, end){
+  art <- Onlypages %>% filter(rowname == rownr) %>% .$article
+  loc <- Onlypages %>% filter(rowname == rownr) %>% .$background
+  acc <- Onlypages %>% filter(rowname == rownr) %>% .$access
+  TS_Extraction(rownr) %>%
+    filter(dates > ymd(start) & dates <= ymd(end)) %>%
+    ggplot(aes(dates, views)) +
+    geom_line() +
+    labs(title = str_c(art, " - ", loc, " - ", acc))
+}
+p1 <- plot_zoom(73112, "2016-09-01", "2016-12-01")
+p2 <- plot_zoom(38947, "2015-08-01", "2015-11-01")
+p3 <- plot_zoom(72310, "2016-09-01", "2016-12-01")
+p4 <- plot_zoom(12028, "2016-06-01", "2016-09-01")
+p1
+p2
+p3
+p4
+
+```
+
+
+# Forecast methods 
+After we have found the samples with extreme parameters(having high SD). For a sample of 145k articles. This forecasting method will perform robustly for a range of different time series shapes and variabilities.
+#Taking hold-out sampling 
+# Our group has decided to take 90 days.
+## ARIMA / auto.arima
+*Now turning view counts into a time series object (using ts function).
+*Cleaning and outlier rejection using the tsclean tool is also done
+
+```{r}
+Auto_Arima_Model <- function(rownr)
+{
+  pageviews <- TS_Extraction(rownr) %>%
+    rownames_to_column() %>%
+    mutate(rowname = as.integer(rowname))
+  pred_len <- 60
+  pred_range <- c(nrow(pageviews)-pred_len+1, nrow(pageviews))
+  pre_views <- pageviews %>% head(nrow(pageviews)-pred_len)
+  post_views <- pageviews %>% tail(pred_len)
+
+  arima.fit <- auto.arima(tsclean(ts(pre_views$views, frequency = 7)),
+                          d = 1, D = 1, stepwise = FALSE, approximation = FALSE)
+  fc_views <- arima.fit %>% forecast(h = pred_len, level = c(50,95))
+  autoplot(fc_views) +
+    geom_line(aes(rowname/7, views), data = post_views, color = "grey40") +
+    labs(x = "Time [weeks]", y = "views vs auto.arima predictions")
+  summary(arima.fit)
+}
+```
+```{r}
+p1 <- Auto_Arima_Model(73112)
+p2 <- Auto_Arima_Model(38947)
+p3 <- Auto_Arima_Model(72310)
+p4 <- Auto_Arima_Model(12028)
+
+
+p1
+p2
+p3
+p4
+```
+
+Results look good. Especially the lower left plot. We even got a downturn in the upper left plot. The upper right plot is a challenging problem, because the levelling of the viewer numbers at the end of the time range was not predictable from the previous behaviour. The same is true for the large spike in the lower right plot.
+
+
+```{r}
+### Basic performance of testing the tool: 
+
+rownr <- 73112
+pageviews <- TS_Extraction(rownr) %>%
+  rename(y = views,
+         ds = dates)
+pred_len <- 90
+pred_range <- c(nrow(pageviews)-pred_len+1, nrow(pageviews))
+pre_views <- pageviews %>% head(nrow(pageviews)-pred_len)
+post_views <- pageviews %>% tail(pred_len)
+
+proph <- prophet(pre_views, changepoint.prior.scale=0.5, yearly.seasonality=TRUE)
+future <- make_future_dataframe(proph, periods = pred_len)
+fcast <- predict(proph, future)
+```
+
+```{r}
+#Adding seasonality too #Tried to complete but due to some error was not done successfully
+ts.data = ts(TrainData, frequency=7, start=c(2015,7))
+ts.data
+#plot(ts.data)
+
+dim(as.matrix(ts.data))
+################################################################################
+
+# Training and Testing Dataset
+data.train = window(ts.data, start = c(2015,7), end = c(2016,9)) 
+#plot(data.train)
+dim(as.matrix(data.train))
+data.test = window(ts.data, start = c(2016,10))
+#plot(data.test)
+dim(as.matrix(data.test))
+################################################################################
+
+# Developing an SARIMA model and Analysis of Model
+library(forecast)
+arima1 = auto.arima(tsclean(data.train[-1]), trace=FALSE, test="kpss",  ic="aic")
+summary(arima1)
+confint(arima1)
+
+```
+
+
