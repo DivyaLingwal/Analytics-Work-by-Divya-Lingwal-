@@ -20,5 +20,5 @@ Semester 2:
 1. Time series forescasting: Project on Descriptive analysis of effect of September 11,2001 on Air,Vehicle and Train Travel: Having both the data pre-Sept 11 and Post Sept 11, I first forecasted the travel after Sept 11 and then compared it with actual Travel pattern.
 Result: Significant drop in Air Travel after Sept 11, while there was no effect on Train travel. Vehicle travel was affected slightly during September 2011. 
 Key Highlights: Had Additive seasonility, Analyzed all the components of TS, Suppresed seasonality to clearly visualize the pattern,Checked staionarity of TS.
-
-
+2. Wiki websites traffic prediction using Time series forecasting
+3. Loan Default prediction, built model to predict which customer is going to default and how much loss a default will cause to the company, using a combination of Regression and Classification models. Feature selection was done using Lasso Regression model
