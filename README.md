@@ -24,7 +24,7 @@ Key Highlights: Had Additive seasonility, Analyzed all the components of TS, Sup
 3. Loan Default prediction, built model to predict which customer is going to default and how much loss a default will cause to the company, using a combination of Regression and Classification models. Feature selection was done using Lasso Regression model
 
 Business Intelligence Analyst:
-•	Fleet data analysis and prediction of Repair & maintenance costs for Aerials, Pickups, and Chippers(Presentation on Aerials is attached)
+•	Fleet data analysis and prediction of Repair & maintenance costs for Aerials, Pickups, and Chippers(Presentation on Aerials is attached with the name "Utilities Data Visualization")
 •	Prediction of Residual/Resale values of Vehicles
 •	Time Series analysis of monthly Repair and maintainance costs
 •	Miles and Type of repair analysis
