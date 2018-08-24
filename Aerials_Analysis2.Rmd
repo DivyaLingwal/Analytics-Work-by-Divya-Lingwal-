@@ -1,0 +1,320 @@
+---
+title: "CAP model with separate models for all Equipment types"
+output: html_notebook
+---
+
+```{r}
+##################################LOADING Packages######################################
+if (!require("pacman")) install.packages("pacman")
+pacman::p_load(plyr, dplyr,tidyr, caret, sqldf, data.table,ggplot2,mice,VIM,corrplot,glmnet,nnet,neuralnet,mice,RANN,randomForest)
+set.seed(84)               
+options(scipen = 9999, warn = -1, digits= 5)
+```
+
+```{r}
+#########################LOADING DATA############################
+set.seed(1234)
+Util_Data<-read.csv("C:\\Users\\dl0037\\Desktop\\Divya\\Analytics_Projects\\data\\Util Aerials.csv")
+dim(Util_Data)
+Aerials<-Util_Data
+#Aerials<-Util_Data[1:4004,]
+#Chippers<-Util_Data[4005:8174,]
+#Pickups<-Util_Data[8175:9788,]
+```
+```{r}
+###################Aerials#################
+
+####################################Data preparation####################################
+#Checking nearzerovariance
+nzv<-nearZeroVar(Aerials)
+nzv
+Aerials1<-Aerials[,-nzv]  #dropped the feature count to 25
+dim(Aerials1)
+#Removing $ signs from numerical values
+Aerials1$Fuel<-sub("$","",Aerials1$Fuel,fixed=TRUE)
+Aerials1$LID<-sub("$","",Aerials1$LID,fixed=TRUE)
+Aerials1$R.M<-sub("$","",Aerials1$R.M,fixed=TRUE)
+Aerials1$R.M<-sub(",","",Aerials1$R.M,fixed=TRUE)
+Aerials1$LID<-sub(",","",Aerials1$LID,fixed=TRUE)
+Aerials1$Fuel<-sub(",","",Aerials1$Fuel,fixed=TRUE)
+Aerials1$Bill.Hrs<-sub(",","",Aerials1$Bill.Hrs,fixed=TRUE)
+Aerials1$R.M<- format(round(as.numeric(Aerials1$R.M), 2), nsmall = 2)
+Aerials1$LID<- format(round(as.numeric(Aerials1$LID), 2), nsmall = 2)
+Aerials1$R.M<- format(round(as.numeric(Aerials1$R.M), 2), nsmall = 2)
+#Aerials1$Purchase.Price<- format(round(as.numeric(Aerials1$Purchase.Price), 2), nsmall = 2)
+Aerials1$Bill.Hrs<- format(round(as.numeric(Aerials1$Bill.Hrs), 2), nsmall = 2)
+#Removing rows of 2018
+Aerials1<-subset(Aerials1,Aerials1$Year!="2018" & Aerials1$Model.Year!="2018")
+```
+
+```{r}
+#############################Data Cleaning##############################
+Aerials1= apply(Aerials1, 2, function(x) gsub("^$|^ $", NA, x)) #Converting Empty fields to NA
+sum(is.na(Aerials1))/(nrow(Aerials1)*ncol(Aerials1)) #7% missing values
+
+Aerials1<-Aerials1[,colMeans(is.na(Aerials1)) < 0.5] #Removing Columns with more than 50% values missing and removes columns with more than 60% missing values
+Aerials1<-Aerials1[rowMeans(is.na(Aerials1)) < 0.5,] #Removing rows with more than 70% values missing
+dim(Aerials1) # feature count reduced to 21
+#str(Aerials1)
+Aerials1<-data.frame(Aerials1) # Converting data to data frame
+
+## converting characters to numeric
+Aerials2<-Aerials1
+Aerials2$R.M<-as.numeric(as.character(Aerials2$R.M))
+Aerials2$Bill.Hrs<-as.numeric(as.character(Aerials2$Bill.Hrs))
+Aerials2$Fuel<-as.numeric(as.character(Aerials2$Fuel))
+Aerials2$LID<-as.numeric(as.character(Aerials2$LID))
+#Aerials2$Purchase.Price<-as.numeric(as.character(Aerials2$Purchase.Price))
+```
+```{r}
+##Missing imputation & removing some more variables with large % of missing values
+Aerials3<-Aerials2
+Aerials3[,c(19:22)][Aerials3[,c(19:22)] == 0] <- NA
+pMiss <- function(x){sum(is.na(x))/length(x)*100}   #5% missing is maximum recommended threshold
+per<-apply(Aerials3,2,pMiss)  ##Will have to remove Engine_configuration, trans_model,TRANS_MANUFACTURER having ~10% missing values
+Aerials4<-Aerials3[!per>=10]   #remove variables with more than or equal to 10% missing
+#aggr_plot <- aggr(Aerials3, col=c('navyblue','lightblue'), numbers=TRUE, sortVars=TRUE, labels=names(Aerials3), cex.axis=.7, gap=3, ylab=c("Histogram of missing data","Pattern"))
+###########imputation#########
+# Imputing R&M costs with median
+Aerials5<-Aerials4
+#Function to impute all numeric variables with mean
+for (j in 1:length(Aerials5[1,]))
+    {
+        if (is.numeric(Aerials5[,j]))
+        {
+            for(k in 1:length(Aerials5[,1]))
+            {
+                if(is.na(Aerials5[k,j]))
+                {
+                    Aerials5[k,j] <- mean(Aerials5[,j],na.rm=T)
+                }
+            }
+        }
+    }
+
+apply(Aerials5,2,pMiss)
+##imputation forapportioned
+i1 <- !sapply(Aerials5, is.numeric)
+  Mode <- function(x) { 
+        ux <- sort(unique(x))
+        ux[which.max(tabulate(match(x, ux)))] 
+  }
+
+Aerials5[i1] <- lapply(Aerials5[i1], function(x)
+              replace(x, is.na(x), Mode(x[!is.na(x)])))
+
+
+# df<-Aerials4
+# df<-data.frame(table(df$APPORTIONED))
+# df
+# Aerials4$APPORTIONED[is.na(Aerials4$APPORTIONED)] <- 'NO'
+# ##imputation for cab type
+# Aerials4$CAB_TYPE<-NULL  #same value for all rows, so not required
+# ##Imputation  for Engine Configuration
+# df<-Aerials4
+# df<-data.frame(table(df$ENGINE_CONFIGURATION))
+# df
+# Aerials4$ENGINE_CONFIGURATION[is.na(Aerials4$ENGINE_CONFIGURATION)] <- '6 CYL. (INLINE)'
+# 
+# ##Imputation  for Engine Manufacturer
+# df<-Aerials4
+# df<-data.frame(table(df$ENGINE_MANUFACTURER))
+# df
+# Aerials4$ENGINE_MANUFACTURER[is.na(Aerials4$ENGINE_MANUFACTURER)] <- 'CUMMINS ENGINE CO.'
+# 
+# ##Imputation  for Engine Model
+# df<-Aerials4
+# df<-data.frame(table(df$ENGINE_MODEL))
+# df
+# Aerials4$ENGINE_MODEL[is.na(Aerials4$ENGINE_MODEL)] <- '6.7'
+# 
+# ##Removing Tower serial
+# Aerials4$TOWER_SERIAL <- NULL
+# ##Imputation  for Tower type
+# df<-Aerials4
+# df<-data.frame(table(df$TOWER_TYPE))
+# df
+# Aerials4$TOWER_TYPE[is.na(Aerials4$TOWER_TYPE)] <- 'OVER CENTER'
+# ##Imputation  for Trans type
+# df<-Aerials4
+# df<-data.frame(table(df$TRANS_TYPE))
+# df
+# Aerials4$TRANS_TYPE[is.na(Aerials4$TRANS_TYPE)] <- 'MANUAL'
+# ##Imputation  for Vehicle Manufacturer
+# df<-Aerials4
+# df<-data.frame(table(df$VEHICLE_MANUFACTURER))
+# df
+# Aerials4$VEHICLE_MANUFACTURER[is.na(Aerials4$VEHICLE_MANUFACTURER)] <- 'FORD DIV., FORD MOTOR CO.'
+# ##Imputation  for Wheels by driven
+# df<-Aerials4
+# df<-data.frame(table(df$WHEELS_BY_DRIVEN))
+# df
+# Aerials4$WHEELS_BY_DRIVEN[is.na(Aerials4$WHEELS_BY_DRIVEN)] <- '4X2'
+# 
+# ##Imputation  for Licence state
+# df<-Aerials4
+# df<-data.frame(table(df$LICENSE_STATE))
+# df
+# Aerials4$LICENSE_STATE[is.na(Aerials4$LICENSE_STATE)] <- 'OH'
+# 
+# ##Imputation  for Ownership code
+# df<-Aerials4
+# df<-data.frame(table(df$OWNERSHIP_CODE))
+# df
+# Aerials4$OWNERSHIP_CODE[is.na(Aerials4$OWNERSHIP_CODE)] <- 'OWN'
+# 
+# ##Imputation  for TOWER_MANUFACTURER
+# df<-Aerials4
+# df<-data.frame(table(df$TOWER_MANUFACTURER))
+# df
+# Aerials4$TOWER_MANUFACTURER[is.na(Aerials4$TOWER_MANUFACTURER)] <- 'ALTEC INDUSTRIES, INC.'
+
+
+Aerials5<-separate(data = Aerials5, col = Unit, into = c("left", "Unit"), sep = " / ")
+Aerials5$left<-NULL
+Aerials5$Unit<- gsub("@","",Aerials5$Unit,fixed = TRUE)
+Aerials5$Unit<- gsub("^","",Aerials5$Unit,fixed = TRUE)
+
+
+# ##Imputation  for Fuel,Bill hours and LID
+# Aerialstemp<-Aerials4
+# 
+# preprocess1<-preProcess(Aerials4[,c(18,19,20,21)],method=c("knnImpute"))
+# AerialsTemp<-predict(preprocess1,Aerials4[,c(18,19,20,21)])
+# Aerials5<-cbind(Aerials4[c(1:17)],AerialsTemp)
+
+Aerials5$Age<-as.numeric(as.character(Aerials5$Age))
+Aerials5$Year<-as.numeric(as.character(Aerials5$Year))
+Aerials5$Model.Year<-as.numeric(as.character(Aerials5$Model.Year))
+```
+```{r}
+############Checking Assumptions of Linear regression##########
+TransformedData<-Aerials5
+library(moments)
+hist(TransformedData$Year)
+#TransformedData$LogOfAge<-log(TransformedData$Age)
+#TransformedData$R.M<-TransformedData$R.M+2
+TransformedData$LogOfRM <- log(TransformedData$R.M)
+
+hist(TransformedData$Age, 
+     main="Histogram for Age of Aerials", 
+     xlab="Age", 
+     border="blue", 
+     col="grey")
+```
+```{r}
+#Inflation Adjustment
+require(quantmod) || install.packages("quantmod")
+require(lubridate) || install.packages("lubridate")
+require(dplyr) || install.packages("dplyr")
+monthly_cpi <-read.table("http://research.stlouisfed.org/fred2/data/CPIAUCSL.txt",
+             skip = 53, header = TRUE)
+monthly_cpi$cpi_year <- year(monthly_cpi$DATE)
+yearly_cpi <- monthly_cpi %>% group_by(cpi_year) %>% summarize(cpi = mean(VALUE))
+
+yearly_cpi$adj_factor <- yearly_cpi$cpi/yearly_cpi$cpi[yearly_cpi$cpi_year == 2018]
+#merging this with CPI_Year
+yearly_cpi1<-yearly_cpi
+yearly_cpi1$Year<-yearly_cpi1$cpi_year
+yearly_cpi1$cpi_year<-NULL
+yearly_cpi1$Year<-as.factor(as.character(yearly_cpi1$Year))
+TransformedData<-left_join(TransformedData, yearly_cpi1, by = "Year")
+TransformedData$Adj_R_M<-TransformedData$R.M / TransformedData$adj_factor
+
+#write.csv(ResaleData4,"ResaleData2.csv",row.names = FALSE)
+```
+
+```{r}
+###########Outlier analysis and Scaling#######
+#preprocessParams <- preProcess(Aerials5[,c(3,16:18)], method=c("center","scale"))
+#TransformedData <- predict(preprocessParams, Aerials5)
+hist(TransformedData$R.M)
+#Check Collinearity
+corrplot(cor(TransformedData[,c(3,4,15:19)]))  # LID and Purchase price are highly correlated so we will keep only purchase price in model
+#cor(Aerials5$R.M,Aerials5$Purchase.Price) #1%
+cor(Aerials5$R.M,Aerials5$Age) #23%
+cor(Aerials5$R.M,Aerials5$Year) #11%
+cor(Aerials5$R.M,Aerials5$Model.Year) #-23%
+```
+
+```{r}
+###############################Train,Validation and Test Data##############################
+set.seed(200)
+write.csv(TransformedData, "Aerials6.csv")
+intrain <- createDataPartition(y = TransformedData$LogOfRM, p= 0.70, list = FALSE)
+#TransformedData$R.M<-as.factor(TransformedData$R.M)
+training <- TransformedData[intrain,]
+testing <- TransformedData[-intrain,]
+#levels(testing$TOWER_SERIAL)=levels(training$TOWER_SERIAL)
+```
+```{r}
+##################################Model Building####################################
+set.seed(200)
+training$Age<-training$Year-training$Model.Year
+model<-lm(LogOfRM~Installed.Location+ENGINE_MANUFACTURER+Purchase.Price+Year+OWNERSHIP_CODE+WHEELS_BY_DRIVEN+TOWER_TYPE+APPORTIONED+ENGINE_CONFIGURATION+TRANS_TYPE+Model.Year+LID+Bill.Hrs+Fuel,training)  # TRANS_TYPE,fuel cost,bill hours,LID+Bill.Hrs+Fuel was not found significant
+summary(model) #44% Rsquare
+
+#removed: model year, Equipment, Tower serial, Bill.hrs, Fuel, LID,Engine model,+VEHICLE_MANUFACTURER
+#Installed.Location+ENGINE_MANUFACTURER+Purchase.Price+Year+OWNERSHIP_CODE+LogOfAge+WHEELS_BY_DRIVEN+TOWER_TYPE+APPORTIONED+ENGINE_CONFIGURATION+TRANS_TYPE+LID+Bill.Hrs+Fuel
+#confint(model)
+anova(model)
+pred.values<-predict(model,training)
+varImp(model)
+hist(model$residuals)
+plot(model$residuals,training$LogOfRM)
+model$xlevels[["Installed.Location"]] <- union(model$xlevels[["Installed.Location"]], levels(testing$Installed.Location))
+
+##R square on Test data
+testing$R.M<-NULL
+testing$LogOfAge<-NULL
+testing1<-testing
+test.pred<-predict(model,newdata = testing)
+R2_nn=cor(test.pred,testing$LogOfRM)^2
+
+test.y<-testing$LogOfRM
+SS.total = sum((test.y-mean(test.y))^2)
+SS.regression = sum((test.pred-mean(test.y))^2)
+ss.residual<-sum((test.pred-mean(test.y))^2)
+R.sq = 1- (ss.residual/SS.total)
+R.sq
+require(graphics)
+## Predictions
+rnorm(model)
+boxplot(training[,c(2,3,15:20)])
+plot(model$residuals,model$fitted.values)
+plot(training$LogOfRM,model$fitted.values,col=c("blue","black"))
+plot(training$LogOfRM,pred.values, col=c("blue","black"))
+```
+```{r}
+###############lasso Regression###############
+#cvfit = cv.glmnet(LogOfRM ~ Installed.Location+ENGINE_MANUFACTURER+Purchase.Price+Year+OWNERSHIP_CODE+Age+WHEELS_BY_DRIVEN+TOWER_TYPE+APPORTIONED+ENGINE_CONFIGURATION+TRANS_TYPE+LID+Bill.Hrs+Fuel,data=training, alpha = 1, nlambda =100)
+#print(cvfit)
+#library(glmnetUtils)
+#plot(cvfit)
+#cvfit$lambda.min
+#coef(cvfit, s = "lambda.min")
+
+#predicts_glm_lasso<-predict(cvfit, newdata = testing, s = "lambda.min")
+#MSE_glm_lasso=mean(sqrt((predicts_glm_lasso-testing$R.M)^2))
+#print(MSE_glm_lasso)
+#r2 <- cvfit$glmnet.fit$dev.ratio[which(cvfit$glmnet.fit$lambda == cvfit$lambda.1se)] 
+#r2
+```
+
+```{r}
+#Prediction of test data
+Predictionmodel<-lm(LogOfRM~Installed.Location+ENGINE_MANUFACTURER+Purchase.Price+Year+OWNERSHIP_CODE+WHEELS_BY_DRIVEN+TOWER_TYPE+APPORTIONED+ENGINE_CONFIGURATION+TRANS_TYPE+Model.Year,training)
+summary(Predictionmodel)
+Aerials_test<-read.csv("M:\\Equipment_Data\\Aerials_Test.csv")
+preds<-predict(Predictionmodel,newdata = Aerials_test, interval = 'confidence')
+Aerials_test$Predictions<-predict(Predictionmodel,newdata = Aerials_test, interval = 'confidence')
+Aerials_test$Predicted_R.M<-exp(Aerials_test$Predictions)
+
+preds<-data.frame(preds)
+preds$lower<-exp(preds$lwr)
+preds$upper<-exp(preds$upr)
+preds
+```
+
+
+
